@@ -1,4 +1,4 @@
-# MCA Connect Mobile — Authentication & Login Module Documentation
+# SCIS Connect Mobile — Authentication & Login Module Documentation
 
 > **Document Created:** Sunday, August 23, 2026 at 6:31 PM IST (`2026-08-23T18:31:40+05:30`)  
 > **Module:** Authentication (`(auth)/login`)  
@@ -9,14 +9,14 @@
 
 ## 📋 Overview
 
-The **Login Page** serves as the primary authentication gateway for the **MCA Connect Mobile** application. It conforms strictly to the architecture, UI/UX, and component guidelines defined in `app/AGENTS.md`.
+The **Login Page** serves as the primary authentication gateway for the **SCIS Connect Mobile** application. It conforms strictly to the architecture, UI/UX, and component guidelines defined in `app/AGENTS.md`.
 
 ---
 
 ## 🏗️ Architecture & Created Files
 
 ```text
-MCA-Connect-Mobile/
+SCIS-Connect-Mobile/
 ├── app/
 │   ├── _layout.tsx               # Root stack layout (header hidden)
 │   ├── index.tsx                 # Root entry redirecting to /(auth)/login
@@ -57,7 +57,7 @@ MCA-Connect-Mobile/
 
 1. **Header & Emblem:**
    - Academic badge with icon (`school` from Ionicons) in an indigo rounded container.
-   - Portal pill: `MCA CONNECT • STUDENT PORTAL`.
+   - Portal pill: `SCIS CONNECT • STUDENT PORTAL`.
    - Title: `Welcome Back`.
    - Subtitle: Clear guidance for students to access dashboard, placements, and notifications.
 
@@ -79,7 +79,7 @@ MCA-Connect-Mobile/
 
 3. **Information & Support:**
    - Info callout explaining default login credentials for first-time students.
-   - Security footer: `MCA Connect Secure Platform • v1.0.0`.
+   - Security footer: `SCIS Connect Secure Platform • v1.0.0`.
 
 ---
 

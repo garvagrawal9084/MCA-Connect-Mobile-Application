@@ -1,5 +1,5 @@
 /**
- * MCA Connect Mobile - Authentication Types
+ * SCIS Connect Mobile - Authentication Types
  */
 
 export interface LoginCredentials {

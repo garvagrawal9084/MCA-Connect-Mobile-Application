@@ -109,7 +109,7 @@ export default function LoginScreen() {
   const handleForgotPassword = () => {
     Alert.alert(
       "Forgot Password?",
-      "For student password reset requests, please contact your MCA Department Administrator or College IT Cell with your Student Registration Number.",
+      "For student password reset requests, please contact your SCIS Department Administrator or College IT Cell with your Student Registration Number.",
       [{ text: "OK", style: "default" }]
     );
   };
@@ -137,7 +137,7 @@ export default function LoginScreen() {
             {/* Portal Badge */}
             <View className="bg-indigo-100 dark:bg-indigo-950/60 px-3 py-1 rounded-full mb-2 border border-indigo-200 dark:border-indigo-800">
               <Text className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 tracking-wider">
-                MCA CONNECT • STUDENT PORTAL
+                SCIS CONNECT • STUDENT PORTAL
               </Text>
             </View>
 
@@ -272,7 +272,7 @@ export default function LoginScreen() {
                   Need Help Accessing Your Account?
                 </Text>
                 <Text className="text-xs text-slate-500 dark:text-slate-400 leading-4">
-                  First-time users should use their university registration ID and default password provided by the MCA department.
+                  First-time users should use their university registration ID and default password provided by the SCIS department.
                 </Text>
               </View>
             </View>
@@ -283,7 +283,7 @@ export default function LoginScreen() {
             <View className="flex-row items-center">
               <Ionicons name="shield-checkmark-outline" size={14} color="#94A3B8" />
               <Text className="text-xs text-slate-400 dark:text-slate-500 ml-1">
-                MCA Connect Secure Platform • v1.0.0
+                SCIS Connect Secure Platform • v1.0.0
               </Text>
             </View>
           </View>

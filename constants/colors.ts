@@ -1,5 +1,5 @@
 /**
- * MCA Connect Mobile - Color Palette & Theme Tokens
+ * SCIS Connect Mobile - Color Palette & Theme Tokens
  */
 
 export const colors = {

@@ -1,9 +1,9 @@
 ================================================================================
-  MCA CONNECT MOBILE — APPLICATION & ERROR LOG
+  SCIS CONNECT MOBILE — APPLICATION & ERROR LOG
 ================================================================================
   Created / Initialized: Sunday, August 23, 2026, 16:30:00 IST (UTC+05:30)
   ISO Timestamp:         2026-08-23T16:30:00.000+05:30
-  Application:           MCA Connect Mobile
+  Application:           SCIS Connect Mobile
   Runtime Stack:         Expo SDK 54 (~54.0.36) | React Native 0.81.5 | React 19.1.0
   Log File Target:       logs/errors.log
   Status:                ACTIVE — All systems operational (0 runtime errors logged)
@@ -30,6 +30,7 @@
   [2026-08-23 18:50:00.150] [INFO]  [UI] Normalized NativeWind component styles (Input, Button, Card, LoginScreen)
   [2026-08-23 18:50:00.200] [INFO]  [CONFIG] Disabled experimental reactCompiler in app.json for NativeWind interop stability
   [2026-08-23 18:55:00.100] [INFO]  [UI] Updated Student ID and Password input placeholders in app/(auth)/login.tsx
+  [2026-08-23 19:01:00.100] [INFO]  [REBRAND] Updated platform branding and entity names across workspace from MCA to SCIS
 
 ================================================================================
   RUNTIME ERRORS & EXCEPTION LOG

@@ -1,4 +1,4 @@
-# MCA Connect Mobile — Setup & Progress Documentation
+# SCIS Connect Mobile — Setup & Progress Documentation
 
 > **Document Created:** Sunday, August 23, 2026 at 4:28 PM IST (`2026-08-23T16:28:11+05:30`)  
 > **Framework:** Expo SDK 54 (`~54.0.36`) • React Native `0.81.5` • React `19.1.0`  
@@ -9,7 +9,7 @@
 
 ## 📋 Overview
 
-This document records the foundational configuration and progress for the **MCA Connect Mobile Application**. The styling layer has been initialized with **NativeWind v4** and **Tailwind CSS v3**, enabling utility-first styling across iOS, Android, and Web with full TypeScript support.
+This document records the foundational configuration and progress for the **SCIS Connect Mobile Application**. The styling layer has been initialized with **NativeWind v4** and **Tailwind CSS v3**, enabling utility-first styling across iOS, Android, and Web with full TypeScript support.
 
 ---
 

@@ -1,5 +1,5 @@
 /**
- * MCA Connect Mobile - Logger Utility
+ * SCIS Connect Mobile - Logger Utility
  * Provides standardized logging conforming to the project's error log specifications.
  */
 

@@ -1,5 +1,5 @@
 /**
- * MCA Connect Mobile - Centralized Image Assets
+ * SCIS Connect Mobile - Centralized Image Assets
  */
 
 import appIcon from "@/assets/images/icon.png";

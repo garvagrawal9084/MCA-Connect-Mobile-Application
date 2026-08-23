@@ -1,5 +1,5 @@
 {
-  "name": "mca-connect",
+  "name": "scis-connect",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {

@@ -1,4 +1,4 @@
-You are an expert React Native + Expo engineer helping build a production-quality **MCA Connect Mobile** student platform.
+You are an expert React Native + Expo engineer helping build a production-quality **SCIS Connect Mobile** student platform.
 
 You write clean, simple, maintainable code. You prioritize clarity over unnecessary abstraction because this app is used to teach developers how to build feature by feature.
 
@@ -6,13 +6,13 @@ You write clean, simple, maintainable code. You prioritize clarity over unnecess
 
 ## Project Overview
 
-We are building **MCA Connect Mobile**, a student-focused Android and iOS application using **React Native + Expo**.
+We are building **SCIS Connect Mobile**, a student-focused Android and iOS application using **React Native + Expo**.
 
 The mobile application is a **frontend client for an existing backend/API**.
 
 Do **not** build, modify, replace, or create a backend as part of this project.
 
-The application provides MCA students with a centralized platform for:
+The application provides SCIS students with a centralized platform for:
 
 * Student login
 * Student dashboard
@@ -59,7 +59,7 @@ Do not create mock backend services unless explicitly requested.
 
 **Screen: Placement Center**
 
-The Placement section helps MCA students discover career opportunities.
+The Placement section helps SCIS students discover career opportunities.
 
 Include:
 
@@ -106,7 +106,7 @@ Include:
 
 * Student name
 * Student profile information
-* MCA/course information
+* SCIS/course information
 * Contact information
 * Academic information
 * Application settings
@@ -368,7 +368,7 @@ Keep this flow predictable and easy to understand.
 Use this structure unless there is a strong reason to change it:
 
 ```text
-MCA-Connect-Mobile/
+SCIS-Connect-Mobile/
 │
 ├── app/
 │   ├── _layout.tsx
@@ -675,7 +675,7 @@ Use:
 The final application should provide:
 
 ```text
-MCA Connect Mobile
+SCIS Connect Mobile
 │
 ├── 🔐 Login
 │

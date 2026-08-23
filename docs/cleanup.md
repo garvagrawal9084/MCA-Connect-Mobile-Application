@@ -1,4 +1,4 @@
-# MCA Connect Mobile — Project Cleanup & File Audit Documentation
+# SCIS Connect Mobile — Project Cleanup & File Audit Documentation
 
 > **Document Created:** Sunday, August 23, 2026 at 6:41 PM IST (`2026-08-23T18:41:20+05:30`)  
 > **Module:** Workspace & Repository Maintenance  
@@ -41,7 +41,7 @@ Following the project guidelines and architectural definitions specified in [app
 ## 📁 Clean Workspace Structure
 
 ```text
-MCA-Connect-Mobile/
+SCIS-Connect-Mobile/
 ├── app/
 │   ├── AGENTS.md                 # Architecture, UX guidelines & rules
 │   ├── _layout.tsx               # Root stack navigator
