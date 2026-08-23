@@ -30,3 +30,18 @@ export interface AuthResponse {
   user: AuthUser;
   expiresIn?: number;
 }
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
+export interface ForgotPasswordFormErrors {
+  email?: string;
+  general?: string;
+}

@@ -6,10 +6,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,7 @@ import { LoginCredentials, LoginFormErrors } from "@/features/auth/types";
 import { logger } from "@/utils/logger";
 
 export default function LoginScreen() {
+  const router = useRouter();
   const [credentials, setCredentials] = useState<LoginCredentials>({
     identifier: "",
     password: "",
@@ -90,7 +91,6 @@ export default function LoginScreen() {
         rememberMe: credentials.rememberMe,
       });
 
-      // NOTE: API request integration will be configured when endpoint details are provided.
       // Simulating a brief delay for UI demonstration
       await new Promise((resolve) => setTimeout(resolve, 800));
 
@@ -105,13 +105,10 @@ export default function LoginScreen() {
     }
   };
 
-  // Forgot password dialog
+  // Navigate to Forgot Password screen
   const handleForgotPassword = () => {
-    Alert.alert(
-      "Forgot Password?",
-      "For student password reset requests, please contact your SCIS Department Administrator or College IT Cell with your Student Registration Number.",
-      [{ text: "OK", style: "default" }]
-    );
+    logger.info("AUTH", "Navigating to forgot-password screen");
+    router.push("/(auth)/forgot-password");
   };
 
   return (
