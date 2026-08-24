@@ -160,6 +160,14 @@ export const authApi = {
       throw err;
     }
   },
+
+  /**
+   * Log out student and purge storage
+   */
+  logout(): void {
+    logger.info("AUTH", "Signing out user and purging session");
+    storageService.clearSession();
+  },
 };
 
 export default authApi;

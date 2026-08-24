@@ -42,7 +42,11 @@ app-example
 /ios
 /android
 
-# agents
-.agents/skills
-app/AGENTS.md
+# AI & Agents
+.agent
+.agents
 .claude
+app/AGENTS.md
+
+# Learning documentation
+learning/

@@ -186,6 +186,9 @@ class ApiClient {
               if (refreshRes.data.user) {
                 storageService.setUser(refreshRes.data.user);
               }
+              if (refreshRes.data.refreshToken && storageService.isRememberMe()) {
+                storageService.setRefreshToken(refreshRes.data.refreshToken);
+              }
               logger.info("API", `Token refreshed silently. Retrying ${normalizedEndpoint}`);
               return this.request<T>(endpoint, {
                 ...options,

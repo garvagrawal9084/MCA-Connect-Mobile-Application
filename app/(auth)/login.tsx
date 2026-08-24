@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LoginCredentials, LoginFormErrors, AuthUser } from "@/features/auth/types";
-import { authApi } from "@/features/auth/api";
+import { useAuthStore } from "@/features/auth/authStore";
 import { ApiError } from "@/services/api";
 import { logger } from "@/utils/logger";
 
@@ -144,22 +144,27 @@ export default function LoginScreen() {
         rememberMe: credentials.rememberMe,
       });
 
-      const response = await authApi.login({
+      const data = await useAuthStore.getState().login({
         email: credentials.email,
         password: credentials.password,
         rememberMe: credentials.rememberMe,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const user = response.data?.user;
+      const user = data.user;
       setLoggedInUser(user || null);
-      setSuccessMessage(response.message || "Login successful");
+      setSuccessMessage("Login successful");
 
       logger.info("AUTH", "Student login succeeded", {
         email: credentials.email,
         userName: user?.name,
-        hasAccessToken: !!response.data?.accessToken,
+        hasAccessToken: !!data.accessToken,
       });
+
+      // Smoothly navigate to main application tabs
+      setTimeout(() => {
+        router.replace("/(app)/(tabs)");
+      }, 400);
     } catch (err: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       triggerErrorShake();
