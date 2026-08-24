@@ -34,6 +34,19 @@
   [2026-08-23 19:14:00.100] [INFO]  [API] Core API Client initialized: services/api.ts connected to Railway backend
   [2026-08-23 19:14:00.150] [INFO]  [AUTH] Forgot Password screen implemented: app/(auth)/forgot-password.tsx
   [2026-08-23 19:14:00.200] [INFO]  [AUTH] Endpoint integrated: POST /api/auth/forgot-password with live error and success handling
+  [2026-08-23 22:40:00.100] [INFO]  [THEME] Color palette migrated to Violet/Lavender/Charcoal (#6D28D9, #8B5CF6, #C4B5FD, #F5F3FF, #1F2937) across constants/colors.ts, tailwind.config.js, UI components, and auth screens.
+  [2026-08-24 09:30:00.100] [INFO]  [STORAGE] Centralized session & cookie manager created in services/storage.ts
+  [2026-08-24 09:30:00.150] [INFO]  [API] Enhanced services/api.ts to automatically extract Set-Cookie headers, persist session cookies, and attach Cookie / Bearer Authorization headers
+  [2026-08-24 09:34:00.100] [INFO]  [DOCS] Documentation updated in docs/login-api-integration.md and implementation plan finalized
+  [2026-08-24 09:44:00.100] [INFO]  [STORAGE] Updated storageService to support Remember Me preference tracking and automatic cookie purging on uncheck
+  [2026-08-24 09:44:00.150] [INFO]  [API] Configured apiClient to conditionally parse and store Set-Cookie headers only when Remember Me / saveCookies is enabled
+  [2026-08-24 09:44:00.200] [INFO]  [AUTH] Configured authApi.login to only persist refreshToken cookies if credentials.rememberMe is checked; clears cookies when disabled
+  [2026-08-24 09:44:00.250] [INFO]  [DOCS] Created docs/remember-me-cookie-management.md and updated docs/login-api-integration.md
+  [2026-08-24 09:54:00.100] [INFO]  [CONFIG] Added REFRESH: "/api/auth/refresh" endpoint to constants/config.ts
+  [2026-08-24 09:54:00.150] [INFO]  [STORAGE] Added explicit getRefreshToken, setRefreshToken, and hasRefreshToken methods in services/storage.ts
+  [2026-08-24 09:54:00.200] [INFO]  [AUTH] Implemented authApi.refreshToken() in features/auth/api.ts with 200/401/403 contract handling
+  [2026-08-24 09:54:00.250] [INFO]  [API] Added silent token refresh retry on 401 Unauthorized for protected endpoints in services/api.ts
+  [2026-08-24 09:54:00.300] [INFO]  [DOCS] Created docs/token-refresh-api-integration.md documenting /api/auth/refresh contract
 
 ================================================================================
   RUNTIME ERRORS & EXCEPTION LOG
@@ -43,4 +56,3 @@
     - Root Cause: NativeWind transition-all / ring-* utilities and experimental React Compiler triggered CSS interop race condition during initial navigation tree mount.
     - Resolution: Removed web-only transition/ring utilities, switched to clean React Native styling, added explicit Stack.Screen layout declarations, and disabled experimental reactCompiler.
     - Verification: Bundling and doctor checks verified passing with 0 errors. Status: RESOLVED.
-

@@ -1,34 +1,66 @@
 /**
  * SCIS Connect Mobile - Authentication Types
+ * Strictly typed interfaces matching the SCIS backend contracts.
  */
 
 export interface LoginCredentials {
-  identifier: string; // Email or Student Registration Number
+  email: string;
   password: string;
   rememberMe?: boolean;
 }
 
 export interface LoginFormErrors {
-  identifier?: string;
+  email?: string;
   password?: string;
   general?: string;
 }
 
 export interface AuthUser {
-  id: string;
-  studentId: string;
+  _id?: string;
+  id?: string;
+  studentId?: string;
   name: string;
   email: string;
-  course: string;
-  semester: number;
+  role?: string;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
+  course?: string;
+  semester?: number;
+  avatar?: string;
   avatarUrl?: string;
+  community?: {
+    _id?: string;
+    id?: string;
+    name?: string;
+    code?: string;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  refreshToken?: string;
+export interface LoginResponseData {
   user: AuthUser;
-  expiresIn?: number;
+  accessToken: string;
+  refreshToken?: string;
+}
+
+export interface RefreshTokenResponseData {
+  user: AuthUser;
+  accessToken: string;
+  refreshToken?: string;
+}
+
+export interface RefreshTokenErrorData {
+  requiresVerification?: boolean;
+  email?: string;
+}
+
+export interface EmailNotVerifiedErrorData {
+  requiresVerification?: boolean;
+  email?: string;
+  message?: string;
+  resendUrl?: string;
+  helpUrl?: string;
 }
 
 export interface ForgotPasswordRequest {

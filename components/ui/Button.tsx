@@ -63,17 +63,17 @@ export const Button: React.FC<ButtonProps> = ({
     // Variant
     switch (variant) {
       case "secondary":
-        base += " bg-sky-500 active:bg-sky-600 dark:bg-sky-600";
+        base += " bg-violet-500 active:bg-violet-600 dark:bg-violet-600";
         break;
       case "outline":
-        base += " bg-transparent border border-indigo-600 dark:border-indigo-400 active:bg-indigo-50 dark:active:bg-indigo-950/30";
+        base += " bg-transparent border border-violet-700 dark:border-violet-400 active:bg-violet-50 dark:active:bg-violet-950/30";
         break;
       case "ghost":
         base += " bg-transparent active:bg-slate-100 dark:active:bg-slate-800";
         break;
       case "primary":
       default:
-        base += " bg-indigo-600 active:bg-indigo-700 shadow-md shadow-indigo-600";
+        base += " bg-violet-700 active:bg-violet-800 shadow-md shadow-violet-700";
         break;
     }
 
@@ -105,7 +105,7 @@ export const Button: React.FC<ButtonProps> = ({
     // Variant
     switch (variant) {
       case "outline":
-        base += " text-indigo-600 dark:text-indigo-400";
+        base += " text-violet-700 dark:text-violet-400";
         break;
       case "ghost":
         base += " text-slate-700 dark:text-slate-300";
@@ -124,7 +124,7 @@ export const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case "outline":
       case "ghost":
-        return "#4F46E5";
+        return "#6D28D9";
       default:
         return "#FFFFFF";
     }

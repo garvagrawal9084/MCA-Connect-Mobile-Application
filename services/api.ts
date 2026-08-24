@@ -1,10 +1,13 @@
 /**
  * SCIS Connect Mobile - Core API Service Client
  * Standardized HTTP client for interacting with the SCIS backend API.
+ * Adheres strictly to the architectural standards in app/AGENTS.md.
  */
 
 import { API_CONFIG } from "@/constants/config";
 import { logger } from "@/utils/logger";
+import { storageService } from "@/services/storage";
+import type { LoginResponseData } from "@/features/auth/types";
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -26,9 +29,12 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions extends RequestInit {
+export interface RequestOptions extends RequestInit {
   timeout?: number;
   token?: string;
+  includeCookies?: boolean;
+  saveCookies?: boolean;
+  _retry?: boolean;
 }
 
 class ApiClient {
@@ -45,7 +51,14 @@ class ApiClient {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<ApiResponse<T>> {
-    const { timeout = API_CONFIG.TIMEOUT_MS, token, headers = {}, ...customConfig } = options;
+    const {
+      timeout = API_CONFIG.TIMEOUT_MS,
+      token,
+      includeCookies = true,
+      saveCookies,
+      headers = {},
+      ...customConfig
+    } = options;
 
     const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = `${this.baseUrl}${normalizedEndpoint}`;
@@ -59,20 +72,60 @@ class ApiClient {
       ...(headers as Record<string, string>),
     };
 
-    if (token) {
-      requestHeaders["Authorization"] = `Bearer ${token}`;
+    // Attach Bearer token if provided or stored
+    const activeToken = token || storageService.getAccessToken();
+    if (activeToken) {
+      requestHeaders["Authorization"] = `Bearer ${activeToken}`;
+    }
+
+    // Attach stored cookies if enabled and present
+    if (includeCookies) {
+      const cookieHeader = storageService.getCookieHeader();
+      if (cookieHeader && !requestHeaders["Cookie"]) {
+        requestHeaders["Cookie"] = cookieHeader;
+      }
     }
 
     try {
       logger.debug("API", `Sending request: ${options.method || "GET"} ${normalizedEndpoint}`);
 
       const response = await fetch(url, {
+        credentials: "include",
         ...customConfig,
         headers: requestHeaders,
         signal: controller.signal,
       });
 
       clearTimeout(timer);
+
+      // Extract and persist any Set-Cookie headers only when explicitly enabled or when rememberMe is active
+      const shouldSaveCookies =
+        saveCookies !== undefined ? saveCookies : storageService.isRememberMe();
+
+      if (shouldSaveCookies) {
+        try {
+          const rawHeaders = response.headers as unknown as {
+            getSetCookie?: () => string[];
+            get: (header: string) => string | null;
+          };
+
+          if (typeof rawHeaders.getSetCookie === "function") {
+            const cookies = rawHeaders.getSetCookie();
+            if (cookies && cookies.length > 0) {
+              storageService.parseAndStoreSetCookie(cookies);
+            }
+          } else {
+            const setCookieHeader = response.headers.get("set-cookie");
+            if (setCookieHeader) {
+              storageService.parseAndStoreSetCookie(setCookieHeader);
+            }
+          }
+        } catch (cookieErr) {
+          logger.debug("API", "Could not parse Set-Cookie header", cookieErr);
+        }
+      } else {
+        logger.debug("API", "Skipping cookie storage because Remember Me / saveCookies is disabled");
+      }
 
       // Parse JSON response safely
       let responseData: unknown = null;
@@ -100,12 +153,59 @@ class ApiClient {
           (parsedData?.error as string) ||
           `HTTP Error ${response.status}: ${response.statusText}`;
 
+        // Auto-refresh token retry on 401 Unauthorized for non-auth routes
+        const isAuthRoute =
+          normalizedEndpoint.includes("/api/auth/login") ||
+          normalizedEndpoint.includes("/api/auth/refresh") ||
+          normalizedEndpoint.includes("/api/auth/forgot-password");
+
+        if (
+          response.status === 401 &&
+          !options._retry &&
+          !isAuthRoute &&
+          storageService.hasRefreshToken()
+        ) {
+          logger.info(
+            "API",
+            `Encountered 401 on ${normalizedEndpoint}. Attempting silent token refresh...`
+          );
+          try {
+            const refreshPayload = { refreshToken: storageService.getRefreshToken() };
+            const refreshRes = await this.post<LoginResponseData>(
+              API_CONFIG.ENDPOINTS.AUTH.REFRESH,
+              refreshPayload,
+              {
+                includeCookies: true,
+                saveCookies: storageService.isRememberMe(),
+                _retry: true,
+              }
+            );
+
+            if (refreshRes.data?.accessToken) {
+              storageService.setAccessToken(refreshRes.data.accessToken);
+              if (refreshRes.data.user) {
+                storageService.setUser(refreshRes.data.user);
+              }
+              logger.info("API", `Token refreshed silently. Retrying ${normalizedEndpoint}`);
+              return this.request<T>(endpoint, {
+                ...options,
+                token: refreshRes.data.accessToken,
+                _retry: true,
+              });
+            }
+          } catch (refreshErr) {
+            logger.warn("API", "Silent token refresh failed during 401 retry", refreshErr);
+            storageService.clearSession();
+          }
+        }
+
         logger.warn("API", `API Error [${response.status}] on ${normalizedEndpoint}`, {
           status: response.status,
           message: errorMsg,
+          data: parsedData?.data || parsedData,
         });
 
-        throw new ApiError(errorMsg, response.status, parsedData);
+        throw new ApiError(errorMsg, response.status, parsedData?.data || parsedData);
       }
 
       return {
