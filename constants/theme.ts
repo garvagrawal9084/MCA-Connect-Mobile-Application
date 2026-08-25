@@ -2,7 +2,7 @@
  * SCIS Connect Mobile - Design System & Unified Theme Tokens
  *
  * Single source of truth for:
- * - Colors (Light Multi-Color Palette: Ocean Cerulean, Mint Emerald, Iris, Honey Amber, Rose)
+ * - Colors (Official UoH Crimson Maroon, Banner Orange, Slate neutrals, Pillar modules)
  * - Spacing (4-point grid)
  * - Border Radius
  * - Typography

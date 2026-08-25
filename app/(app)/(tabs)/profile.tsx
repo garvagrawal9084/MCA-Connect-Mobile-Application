@@ -38,11 +38,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950 px-5 pt-4">
+    <SafeAreaView className="flex-1 bg-[#F8FAFC] dark:bg-slate-950 px-5 pt-4">
       <StatusBar style="auto" />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="mb-6">
-          <Text className="text-xs font-bold text-violet-700 dark:text-violet-400 tracking-wider">
+          <Text className="text-xs font-bold text-red-800 dark:text-red-400 tracking-wider">
             SCIS CONNECT
           </Text>
           <Text className="text-2xl font-extrabold text-slate-900 dark:text-white">
@@ -51,7 +51,7 @@ export default function ProfileScreen() {
         </View>
 
         <Card className="items-center py-8 mb-5 border border-slate-200/80 dark:border-slate-800">
-          <View className="w-20 h-20 bg-violet-700 dark:bg-violet-600 rounded-full items-center justify-center mb-3 shadow-md shadow-violet-700">
+          <View className="w-20 h-20 bg-red-800 dark:bg-red-900 rounded-full items-center justify-center mb-3 shadow-md shadow-red-900/30">
             <Text className="text-2xl font-bold text-white">
               {user?.name ? user.name.charAt(0).toUpperCase() : "S"}
             </Text>
@@ -62,8 +62,8 @@ export default function ProfileScreen() {
           <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {user?.email || "No email available"}
           </Text>
-          <View className="mt-2 bg-violet-100 dark:bg-violet-950/60 px-3 py-1 rounded-full border border-violet-200 dark:border-violet-800">
-            <Text className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+          <View className="mt-2 bg-red-50 dark:bg-red-950/60 px-3 py-1 rounded-full border border-red-200 dark:border-red-800">
+            <Text className="text-xs font-semibold text-red-800 dark:text-red-300">
               {user?.role || "Student"}
             </Text>
           </View>

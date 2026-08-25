@@ -150,7 +150,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
+    <SafeAreaView className="flex-1 bg-[#F8FAFC] dark:bg-slate-950">
       <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -171,55 +171,54 @@ export default function ForgotPasswordScreen() {
               onPress={handleBackToLogin}
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              className="flex-row items-center self-start bg-slate-200/70 dark:bg-slate-800/80 px-3 py-1.5 rounded-full"
+              className="flex-row items-center self-start bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 px-3.5 py-1.5 rounded-full shadow-xs"
             >
-              <Ionicons name="arrow-back" size={16} color="#6D28D9" />
+              <Ionicons name="arrow-back" size={16} color="#8B0000" />
               <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1.5">
                 Back to Sign In
               </Text>
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Header & Portal Branding */}
-          <Animated.View
-            entering={FadeInDown.delay(60).duration(280).springify().damping(20)}
-            className="items-center mb-6"
-          >
-            {/* Emblem / Badge with Interactive Jiggle */}
-            <TouchableOpacity
-              onPress={triggerBadgeJiggle}
-              activeOpacity={0.85}
-            >
-              <Animated.View
-                style={animatedBadgeStyle}
-                className="w-20 h-20 bg-violet-700 dark:bg-violet-600 rounded-3xl items-center justify-center shadow-lg shadow-violet-700 mb-4"
-              >
-                <Ionicons name="key-outline" size={38} color="#FFFFFF" />
-              </Animated.View>
-            </TouchableOpacity>
-
-            {/* Portal Badge */}
-            <View className="bg-violet-100 dark:bg-violet-950/60 px-3 py-1 rounded-full mb-2 border border-violet-200 dark:border-violet-800">
-              <Text className="text-xs font-semibold text-violet-700 dark:text-violet-300 tracking-wider">
-                SCIS CONNECT • PASSWORD RECOVERY
-              </Text>
-            </View>
-
-            {/* Main Title */}
-            <Text className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white text-center">
-              Forgot Password
-            </Text>
-            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center mt-1.5 px-4 leading-5">
-              Enter your registered college email address to receive your password reset OTP
-            </Text>
-          </Animated.View>
-
           {/* Form Card with Jiggle / Error Shake */}
           <Animated.View
-            entering={FadeInDown.delay(120).duration(300).springify().damping(20)}
+            entering={FadeInDown.delay(80).duration(300).springify().damping(20)}
             style={animatedCardShakeStyle}
           >
-            <Card className="mb-6 border border-slate-200/80 dark:border-slate-800">
+            <Card className="mb-4 border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/60 dark:shadow-none p-6">
+              {/* Header & Portal Branding Inside Card */}
+              <View className="items-center mb-6">
+                <TouchableOpacity
+                  onPress={triggerBadgeJiggle}
+                  activeOpacity={0.85}
+                >
+                  <Animated.View
+                    style={animatedBadgeStyle}
+                    className="w-16 h-16 bg-red-800 dark:bg-red-900 rounded-2xl items-center justify-center shadow-md shadow-red-900/30 mb-3"
+                  >
+                    <Ionicons name="key-outline" size={32} color="#FFFFFF" />
+                  </Animated.View>
+                </TouchableOpacity>
+
+                {/* SCIS Connect Brand */}
+                <View className="flex-row items-center mb-1">
+                  <Text className="text-base font-black text-red-800 dark:text-red-400 tracking-wide">
+                    SCIS{" "}
+                  </Text>
+                  <Text className="text-base font-extrabold text-slate-800 dark:text-slate-100">
+                    Connect
+                  </Text>
+                </View>
+
+                {/* Main Title */}
+                <Text className="text-2xl font-black text-slate-900 dark:text-white text-center tracking-tight">
+                  Forgot Password
+                </Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1 px-2 leading-4">
+                  Enter your registered college email to receive your password reset OTP
+                </Text>
+              </View>
+
               {/* General Error Banner */}
               {generalError && (
                 <View className="flex-row items-center bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 p-3 rounded-xl mb-4">
@@ -259,7 +258,7 @@ export default function ForgotPasswordScreen() {
               {/* College Email Input */}
               <Input
                 label="College Email Address"
-                placeholder="e.g. student@uohyd.ac.in"
+                placeholder="25MCMC35@uohyd.ac.in"
                 value={email}
                 onChangeText={handleEmailChange}
                 error={errors.email}
@@ -296,25 +295,38 @@ export default function ForgotPasswordScreen() {
               <TouchableOpacity
                 onPress={handleBackToLogin}
                 activeOpacity={0.7}
-                className="items-center justify-center mt-4 py-2"
+                className="items-center justify-center mt-5 py-1"
               >
-                <Text className="text-xs font-semibold text-violet-700 dark:text-violet-400">
-                  Remember your password? Sign In
+                <Text className="text-xs font-bold text-red-800 dark:text-red-400">
+                  ← Back to Sign In
                 </Text>
               </TouchableOpacity>
             </Card>
           </Animated.View>
 
+          {/* University of Hyderabad Footer Badge */}
+          <Animated.View
+            entering={FadeInDown.delay(160).duration(300).springify().damping(20)}
+            className="items-center mt-2 mb-4"
+          >
+            <View className="flex-row items-center bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 px-4 py-1.5 rounded-full shadow-xs">
+              <Ionicons name="shield-checkmark" size={14} color="#8B0000" />
+              <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1.5">
+                University of Hyderabad
+              </Text>
+            </View>
+          </Animated.View>
+
           {/* Help & Support Info Box */}
           <Animated.View
-            entering={FadeInDown.delay(180).duration(300).springify().damping(20)}
-            className="bg-slate-100/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-4 mb-4"
+            entering={FadeInDown.delay(200).duration(300).springify().damping(20)}
+            className="bg-white/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 mb-2 shadow-xs"
           >
             <View className="flex-row items-start">
               <Ionicons
                 name="information-circle-outline"
                 size={20}
-                color="#6D28D9"
+                color="#8B0000"
               />
               <View className="flex-1 ml-2.5">
                 <Text className="text-xs font-semibold text-slate-800 dark:text-slate-200 mb-0.5">
@@ -324,19 +336,6 @@ export default function ForgotPasswordScreen() {
                   If you no longer have access to your registered student email address, please contact the SCIS Department Office or College IT Cell for manual verification.
                 </Text>
               </View>
-            </View>
-          </Animated.View>
-
-          {/* Security & Version Footer */}
-          <Animated.View
-            entering={FadeInDown.delay(240).duration(300).springify().damping(20)}
-            className="items-center mt-2"
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="shield-checkmark-outline" size={14} color="#94A3B8" />
-              <Text className="text-xs text-slate-400 dark:text-slate-500 ml-1">
-                SCIS Connect Secure Platform • v1.0.0
-              </Text>
             </View>
           </Animated.View>
         </ScrollView>

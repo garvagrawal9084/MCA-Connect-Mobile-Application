@@ -102,7 +102,7 @@ export default function TempHomeScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
+    <SafeAreaView className="flex-1 bg-[#F8FAFC] dark:bg-slate-950">
       <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -115,11 +115,11 @@ export default function TempHomeScreen() {
           className="flex-row items-center justify-between mb-5"
         >
           <View className="flex-row items-center">
-            <View className="w-12 h-12 bg-violet-700 dark:bg-violet-600 rounded-2xl items-center justify-center shadow-md shadow-violet-700 mr-3">
+            <View className="w-12 h-12 bg-red-800 dark:bg-red-900 rounded-2xl items-center justify-center shadow-md shadow-red-900/30 mr-3">
               <Ionicons name="school" size={24} color="#FFFFFF" />
             </View>
             <View>
-              <Text className="text-xs font-bold text-violet-700 dark:text-violet-400 tracking-wider">
+              <Text className="text-xs font-bold text-red-800 dark:text-red-400 tracking-wider">
                 SCIS CONNECT
               </Text>
               <Text className="text-xl font-extrabold text-slate-900 dark:text-white">
@@ -168,13 +168,13 @@ export default function TempHomeScreen() {
           <Card className="mb-5 border border-slate-200/80 dark:border-slate-800">
             <View className="flex-row items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
               <View className="flex-row items-center">
-                <Ionicons name="person-circle-outline" size={22} color="#6D28D9" />
+                <Ionicons name="person-circle-outline" size={22} color="#8B0000" />
                 <Text className="text-base font-bold text-slate-900 dark:text-white ml-2">
                   Authenticated Student
                 </Text>
               </View>
-              <View className="bg-violet-100 dark:bg-violet-950/60 px-2.5 py-0.5 rounded-full border border-violet-200 dark:border-violet-800">
-                <Text className="text-[10px] font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wider">
+              <View className="bg-red-50 dark:bg-red-950/60 px-2.5 py-0.5 rounded-full border border-red-200 dark:border-red-800">
+                <Text className="text-[10px] font-bold text-red-800 dark:text-red-300 uppercase tracking-wider">
                   {user?.role || "Student"}
                 </Text>
               </View>
@@ -242,7 +242,7 @@ export default function TempHomeScreen() {
           <Card className="mb-5 border border-slate-200/80 dark:border-slate-800">
             <View className="flex-row items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
               <View className="flex-row items-center">
-                <Ionicons name="hardware-chip-outline" size={20} color="#6D28D9" />
+                <Ionicons name="hardware-chip-outline" size={20} color="#8B0000" />
                 <Text className="text-base font-bold text-slate-900 dark:text-white ml-2">
                   Session & Token Status
                 </Text>
@@ -254,7 +254,7 @@ export default function TempHomeScreen() {
                 <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   Access Token
                 </Text>
-                <Text className="text-xs font-mono font-medium text-violet-700 dark:text-violet-300">
+                <Text className="text-xs font-mono font-medium text-red-800 dark:text-red-300">
                   {tokenPreview}
                 </Text>
               </View>
@@ -296,7 +296,7 @@ export default function TempHomeScreen() {
                 size="sm"
                 onPress={handleTestTokenRefresh}
                 isLoading={isRefreshing}
-                leftIcon={<Ionicons name="refresh-outline" size={16} color="#6D28D9" />}
+                leftIcon={<Ionicons name="refresh-outline" size={16} color="#8B0000" />}
               />
             </View>
           </Card>
@@ -305,15 +305,15 @@ export default function TempHomeScreen() {
         {/* Info Box */}
         <Animated.View
           entering={FadeInDown.delay(240).duration(280).springify().damping(20)}
-          className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-4"
+          className="bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/60 rounded-2xl p-4"
         >
           <View className="flex-row items-start">
-            <Ionicons name="information-circle" size={20} color="#6D28D9" />
+            <Ionicons name="information-circle" size={20} color="#8B0000" />
             <View className="flex-1 ml-2.5">
-              <Text className="text-xs font-bold text-violet-900 dark:text-violet-200 mb-0.5">
+              <Text className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-0.5">
                 Temporary Dashboard Screen
               </Text>
-              <Text className="text-xs text-violet-700 dark:text-violet-300 leading-4">
+              <Text className="text-xs text-slate-600 dark:text-slate-400 leading-4">
                 This temporary home screen confirms login routing and session management work as specified in app/AGENTS.md. Full Dashboard widgets will be added in upcoming feature sprints.
               </Text>
             </View>

@@ -43,18 +43,18 @@ export default function Index() {
   // While checking persisted tokens and performing silent refresh, render branded splash
   if (!isInitialized || isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950 items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-[#F8FAFC] dark:bg-slate-950 items-center justify-center px-6">
         <StatusBar style="auto" />
         <View className="items-center">
           <Animated.View
             style={animatedPulseStyle}
-            className="w-20 h-20 bg-violet-700 dark:bg-violet-600 rounded-3xl items-center justify-center shadow-lg shadow-violet-700 mb-5"
+            className="w-20 h-20 bg-red-800 dark:bg-red-900 rounded-3xl items-center justify-center shadow-lg shadow-red-900/30 mb-5"
           >
             <Ionicons name="school" size={42} color="#FFFFFF" />
           </Animated.View>
 
-          <View className="bg-violet-100 dark:bg-violet-950/60 px-3 py-1 rounded-full mb-2.5 border border-violet-200 dark:border-violet-800">
-            <Text className="text-xs font-bold text-violet-700 dark:text-violet-300 tracking-wider">
+          <View className="bg-red-50 dark:bg-red-950/60 px-3 py-1 rounded-full mb-2.5 border border-red-200 dark:border-red-800">
+            <Text className="text-xs font-bold text-red-800 dark:text-red-300 tracking-wider">
               SCIS CONNECT
             </Text>
           </View>
@@ -64,7 +64,7 @@ export default function Index() {
           </Text>
 
           <View className="flex-row items-center mt-3">
-            <ActivityIndicator size="small" color="#6D28D9" />
+            <ActivityIndicator size="small" color="#8B0000" />
             <Text className="text-xs font-medium text-slate-500 dark:text-slate-400 ml-2">
               Verifying session...
             </Text>

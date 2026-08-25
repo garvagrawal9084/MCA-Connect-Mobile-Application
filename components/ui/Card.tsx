@@ -21,13 +21,13 @@ export const Card: React.FC<CardProps> = ({
         return "bg-slate-100 dark:bg-slate-800";
       case "elevated":
       default:
-        return "bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 shadow-sm";
+        return "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-md shadow-slate-200/50 dark:shadow-none";
     }
   };
 
   return (
     <View
-      className={`rounded-2xl p-5 ${getVariantStyle()} ${className}`}
+      className={`rounded-3xl p-5 ${getVariantStyle()} ${className}`}
       {...restProps}
     >
       {children}

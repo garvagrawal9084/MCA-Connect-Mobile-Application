@@ -42,8 +42,8 @@ export const Input: React.FC<InputProps> = ({
 
   const getBorderColorClass = () => {
     if (hasError) return "border-red-500 bg-red-50/30 dark:bg-red-950/20";
-    if (isFocused) return "border-2 border-violet-700 dark:border-violet-400 bg-violet-50/30 dark:bg-violet-950/30";
-    return "border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90";
+    if (isFocused) return "border-2 border-red-800 dark:border-red-400 bg-red-50/20 dark:bg-red-950/20";
+    return "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/90";
   };
 
   return (
@@ -89,7 +89,7 @@ export const Input: React.FC<InputProps> = ({
             <Ionicons
               name={showPassword ? "eye-off-outline" : "eye-outline"}
               size={20}
-              color={hasError ? "#EF4444" : isFocused ? "#6D28D9" : "#64748B"}
+              color={hasError ? "#EF4444" : isFocused ? "#8B0000" : "#64748B"}
             />
           </TouchableOpacity>
         ) : (
