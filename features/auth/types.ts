@@ -15,15 +15,25 @@ export interface LoginFormErrors {
   general?: string;
 }
 
-export interface AuthUser {
-  _id?: string;
+export interface ProgramInfo {
   id?: string;
-  studentId?: string;
+  _id?: string;
+  name: string;
+  code: string;
+}
+
+export interface AuthUser {
+  id?: string;
+  _id?: string;
   name: string;
   email: string;
+  roll_no?: string;
   role?: string;
   isActive?: boolean;
   isEmailVerified?: boolean;
+  batchYear?: number | string;
+  program?: ProgramInfo | null;
+  studentId?: string;
   course?: string;
   semester?: number;
   avatar?: string;

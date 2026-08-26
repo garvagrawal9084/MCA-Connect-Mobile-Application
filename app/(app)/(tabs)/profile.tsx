@@ -71,9 +71,37 @@ export default function ProfileScreen() {
 
         <Card className="mb-6 border border-slate-200/80 dark:border-slate-800">
           <View className="flex-row justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-            <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">Account ID</Text>
-            <Text className="text-xs font-mono font-semibold text-slate-900 dark:text-white">
-              {user?.id || user?._id || "N/A"}
+            <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">Roll Number</Text>
+            <Text className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+              {user?.roll_no || user?.studentId || "N/A"}
+            </Text>
+          </View>
+          <View className="flex-row justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+            <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">Program</Text>
+            <Text className="text-xs font-semibold text-slate-900 dark:text-white">
+              {user?.program?.name
+                ? `${user.program.name} (${user.program.code})`
+                : user?.program?.code || user?.course || "SCIS Department"}
+            </Text>
+          </View>
+          {user?.batchYear && (
+            <View className="flex-row justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+              <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">Batch Year</Text>
+              <Text className="text-xs font-semibold text-slate-900 dark:text-white">
+                {user.batchYear}
+              </Text>
+            </View>
+          )}
+          <View className="flex-row justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+            <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">Account Status</Text>
+            <Text
+              className={`text-xs font-semibold ${
+                user?.isActive !== false
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400"
+              }`}
+            >
+              {user?.isActive !== false ? "Active" : "Inactive"}
             </Text>
           </View>
           <View className="flex-row justify-between py-2 border-b border-slate-100 dark:border-slate-800">
@@ -83,9 +111,9 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <View className="flex-row justify-between py-2">
-            <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">Course</Text>
-            <Text className="text-xs font-semibold text-slate-900 dark:text-white">
-              {user?.course || "SCIS Department"}
+            <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">Account ID</Text>
+            <Text className="text-xs font-mono font-semibold text-slate-900 dark:text-white">
+              {user?.id || user?._id || "N/A"}
             </Text>
           </View>
         </Card>

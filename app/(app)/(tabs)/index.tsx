@@ -12,74 +12,55 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { PlacementStudioCard } from "@/components/home/PlacementStudioCard";
+import { AlumniNetworkCard } from "@/components/home/AlumniNetworkCard";
+import { AlumniCommunityModal } from "@/components/home/AlumniCommunityModal";
 import { useAuthStore } from "@/features/auth/authStore";
-import { storageService } from "@/services/storage";
 import { logger } from "@/utils/logger";
 
-export default function TempHomeScreen() {
+export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const accessToken = useAuthStore((state) => state.accessToken);
   const logout = useAuthStore((state) => state.logout);
-  const refreshStoreToken = useAuthStore((state) => state.refreshToken);
 
-  const [tokenPreview, setTokenPreview] = useState<string>("");
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [refreshResult, setRefreshResult] = useState<string | null>(null);
+  const [showAlumniModal, setShowAlumniModal] = useState<boolean>(false);
 
-  useEffect(() => {
-    const token = accessToken || storageService.getAccessToken();
-    if (token) {
-      setTokenPreview(
-        token.length > 20
-          ? `${token.substring(0, 10)}...${token.substring(token.length - 8)}`
-          : token
-      );
-    } else {
-      setTokenPreview("None");
-    }
-
-    logger.info("HOME", "Loaded Temp Home Screen with active session", {
-      email: user?.email,
-      name: user?.name,
-      hasToken: Boolean(token),
-    });
-  }, [user, accessToken]);
-
-  const handleTestTokenRefresh = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setIsRefreshing(true);
-      setRefreshResult(null);
-
-      const success = await refreshStoreToken();
-      const newToken = storageService.getAccessToken();
-      if (newToken) {
-        setTokenPreview(
-          newToken.length > 20
-            ? `${newToken.substring(0, 10)}...${newToken.substring(newToken.length - 8)}`
-            : newToken
-        );
-      }
-
-      if (success) {
-        setRefreshResult("Token refreshed & verified successfully with backend! 🎉");
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        setRefreshResult("Token refresh completed (no new token returned)");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Token refresh failed";
-      setRefreshResult(`Error: ${msg}`);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setIsRefreshing(false);
-    }
+  // Extract first name capitalized for the header
+  const getFirstName = () => {
+    if (!user?.name) return "STUDENT";
+    const first = user.name.trim().split(" ")[0];
+    return first.toUpperCase();
   };
 
-  const handleLogout = () => {
+  const programDisplay = user?.program?.code || user?.program?.name || user?.course;
+
+  useEffect(() => {
+    logger.info("HOME", "Rendered SCIS Spaces Hub landing page", {
+      studentName: user?.name,
+      studentEmail: user?.email,
+      roll_no: user?.roll_no,
+      batchYear: user?.batchYear,
+      program: programDisplay,
+    });
+  }, [user, programDisplay]);
+
+  const handleStartPreparing = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    logger.info("HOME", "Student navigated from Spaces Hub to Placement Studio", {
+      student: user?.email,
+    });
+    router.push("/(app)/(tabs)/placement");
+  };
+
+  const handleExploreNetwork = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    logger.info("HOME", "Student opened Alumni Network Under Construction preview modal", {
+      student: user?.email,
+    });
+    setShowAlumniModal(true);
+  };
+
+  const handleSignOut = () => {
     Alert.alert(
       "Sign Out",
       "Are you sure you want to sign out of SCIS Connect?",
@@ -90,7 +71,7 @@ export default function TempHomeScreen() {
           style: "destructive",
           onPress: () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            logger.info("AUTH", "User signed out from temp home screen", {
+            logger.info("AUTH", "Student signed out from Home screen", {
               email: user?.email,
             });
             logout();
@@ -102,224 +83,96 @@ export default function TempHomeScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F8FAFC] dark:bg-slate-950">
+    <SafeAreaView className="flex-1 bg-[#FAFAFA] dark:bg-slate-950">
       <StatusBar style="auto" />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
-        className="px-5 pt-4"
+        className="px-5 pt-3"
       >
-        {/* Top Header */}
+        {/* Top Meta Bar */}
         <Animated.View
-          entering={FadeInDown.duration(280).springify().damping(20)}
-          className="flex-row items-center justify-between mb-5"
+          entering={FadeInDown.duration(260).springify().damping(20)}
+          className="flex-row items-center justify-between mb-4"
         >
-          <View className="flex-row items-center">
-            <View className="w-12 h-12 bg-red-800 dark:bg-red-900 rounded-2xl items-center justify-center shadow-md shadow-red-900/30 mr-3">
-              <Ionicons name="school" size={24} color="#FFFFFF" />
-            </View>
-            <View>
-              <Text className="text-xs font-bold text-red-800 dark:text-red-400 tracking-wider">
-                SCIS CONNECT
+          <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3 py-1.5 rounded-full shadow-xs">
+            <View className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+            <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+              SCIS PORTAL
+            </Text>
+            {programDisplay && (
+              <Text className="text-[11px] font-medium text-slate-400 dark:text-slate-500 ml-1">
+                · {programDisplay}
               </Text>
-              <Text className="text-xl font-extrabold text-slate-900 dark:text-white">
-                Student Portal
-              </Text>
-            </View>
+            )}
           </View>
 
+          {/* Quick Sign Out / Profile Icon */}
           <TouchableOpacity
-            onPress={handleLogout}
-            className="flex-row items-center bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 px-3 py-2 rounded-xl"
+            onPress={handleSignOut}
+            className="w-9 h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 items-center justify-center shadow-xs"
             activeOpacity={0.7}
           >
-            <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-            <Text className="text-xs font-semibold text-red-600 dark:text-red-400 ml-1.5">
-              Sign Out
-            </Text>
+            <Ionicons name="log-out-outline" size={17} color="#64748B" />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Verification Success Banner */}
+        {/* Personalized Welcome Header */}
         <Animated.View
           entering={FadeInDown.delay(60).duration(280).springify().damping(20)}
+          className="mb-6"
         >
-          <Card className="bg-emerald-500/10 border border-emerald-500/30 dark:border-emerald-500/40 p-4 rounded-2xl mb-5">
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 bg-emerald-500 rounded-xl items-center justify-center mr-3 shadow-sm">
-                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
-                  Login Working Successfully! 🎉
-                </Text>
-                <Text className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                  Authenticated session active & verified with live backend
-                </Text>
-              </View>
-            </View>
-          </Card>
+          {/* Top Line: Welcome, GARV. */}
+          <View className="flex-row flex-wrap items-baseline">
+            <Text className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+              Welcome,{" "}
+            </Text>
+            <Text className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+              {getFirstName()}.
+            </Text>
+          </View>
+
+          {/* Line 2: Your next chapter starts here. in crimson */}
+          <Text className="text-3xl sm:text-4xl font-black text-[#B91C1C] dark:text-[#F87171] tracking-tight mt-0.5 mb-3">
+            Your next chapter starts here.
+          </Text>
+
+          {/* Subtitle / Description */}
+          <Text className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-5 sm:leading-6 max-w-xl">
+            Two spaces, one community. Move between career preparation and your SCIS network whenever you like.
+          </Text>
         </Animated.View>
 
-        {/* Student Profile Card */}
+        {/* Two Space Cards */}
         <Animated.View
-          entering={FadeInDown.delay(120).duration(280).springify().damping(20)}
+          entering={FadeInDown.delay(120).duration(300).springify().damping(20)}
         >
-          <Card className="mb-5 border border-slate-200/80 dark:border-slate-800">
-            <View className="flex-row items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <View className="flex-row items-center">
-                <Ionicons name="person-circle-outline" size={22} color="#8B0000" />
-                <Text className="text-base font-bold text-slate-900 dark:text-white ml-2">
-                  Authenticated Student
-                </Text>
-              </View>
-              <View className="bg-red-50 dark:bg-red-950/60 px-2.5 py-0.5 rounded-full border border-red-200 dark:border-red-800">
-                <Text className="text-[10px] font-bold text-red-800 dark:text-red-300 uppercase tracking-wider">
-                  {user?.role || "Student"}
-                </Text>
-              </View>
-            </View>
+          {/* Card 1: Placement studio */}
+          <PlacementStudioCard onStartPreparing={handleStartPreparing} />
 
-            <View className="space-y-3">
-              <View className="flex-row justify-between py-1 border-b border-slate-50 dark:border-slate-800/40">
-                <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Full Name
-                </Text>
-                <Text className="text-xs font-semibold text-slate-900 dark:text-white">
-                  {user?.name || "Student"}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between py-1 border-b border-slate-50 dark:border-slate-800/40">
-                <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Email Address
-                </Text>
-                <Text className="text-xs font-semibold text-slate-900 dark:text-white">
-                  {user?.email || "N/A"}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between py-1 border-b border-slate-50 dark:border-slate-800/40">
-                <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Email Verified
-                </Text>
-                <View className="flex-row items-center">
-                  <Ionicons
-                    name={user?.isEmailVerified ? "checkmark-circle" : "close-circle"}
-                    size={14}
-                    color={user?.isEmailVerified ? "#10B981" : "#F59E0B"}
-                  />
-                  <Text
-                    className={`text-xs font-semibold ml-1 ${
-                      user?.isEmailVerified
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-amber-600 dark:text-amber-400"
-                    }`}
-                  >
-                    {user?.isEmailVerified ? "Verified" : "Pending"}
-                  </Text>
-                </View>
-              </View>
-
-              {user?.course && (
-                <View className="flex-row justify-between py-1 border-b border-slate-50 dark:border-slate-800/40">
-                  <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    Program / Course
-                  </Text>
-                  <Text className="text-xs font-semibold text-slate-900 dark:text-white">
-                    {user.course} {user.semester ? `(Sem ${user.semester})` : ""}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </Card>
+          {/* Card 2: Alumni network */}
+          <AlumniNetworkCard onExploreNetwork={handleExploreNetwork} />
         </Animated.View>
 
-        {/* Live Diagnostics Card */}
+        {/* University Badge Footer */}
         <Animated.View
-          entering={FadeInDown.delay(180).duration(280).springify().damping(20)}
+          entering={FadeInDown.delay(180).duration(300).springify().damping(20)}
+          className="items-center mt-2 mb-2"
         >
-          <Card className="mb-5 border border-slate-200/80 dark:border-slate-800">
-            <View className="flex-row items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <View className="flex-row items-center">
-                <Ionicons name="hardware-chip-outline" size={20} color="#8B0000" />
-                <Text className="text-base font-bold text-slate-900 dark:text-white ml-2">
-                  Session & Token Status
-                </Text>
-              </View>
-            </View>
-
-            <View className="space-y-3">
-              <View className="flex-row justify-between py-1 border-b border-slate-50 dark:border-slate-800/40">
-                <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Access Token
-                </Text>
-                <Text className="text-xs font-mono font-medium text-red-800 dark:text-red-300">
-                  {tokenPreview}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between py-1 border-b border-slate-50 dark:border-slate-800/40">
-                <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Remember Me
-                </Text>
-                <Text className="text-xs font-semibold text-slate-900 dark:text-white">
-                  {storageService.isRememberMe() ? "Enabled (Persistent)" : "Disabled (Session Only)"}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between py-1">
-                <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Live Backend Status
-                </Text>
-                <View className="flex-row items-center">
-                  <View className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5" />
-                  <Text className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    Online & Active
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {refreshResult && (
-              <View className="mt-3 p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
-                <Text className="text-xs font-mono text-slate-700 dark:text-slate-300">
-                  {refreshResult}
-                </Text>
-              </View>
-            )}
-
-            <View className="mt-4">
-              <Button
-                title={isRefreshing ? "Testing Token Refresh..." : "Test Token Refresh"}
-                variant="outline"
-                size="sm"
-                onPress={handleTestTokenRefresh}
-                isLoading={isRefreshing}
-                leftIcon={<Ionicons name="refresh-outline" size={16} color="#8B0000" />}
-              />
-            </View>
-          </Card>
-        </Animated.View>
-
-        {/* Info Box */}
-        <Animated.View
-          entering={FadeInDown.delay(240).duration(280).springify().damping(20)}
-          className="bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/60 rounded-2xl p-4"
-        >
-          <View className="flex-row items-start">
-            <Ionicons name="information-circle" size={20} color="#8B0000" />
-            <View className="flex-1 ml-2.5">
-              <Text className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-0.5">
-                Temporary Dashboard Screen
-              </Text>
-              <Text className="text-xs text-slate-600 dark:text-slate-400 leading-4">
-                This temporary home screen confirms login routing and session management work as specified in app/AGENTS.md. Full Dashboard widgets will be added in upcoming feature sprints.
-              </Text>
-            </View>
+          <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3.5 py-1.5 rounded-full shadow-xs">
+            <Ionicons name="school" size={13} color="#8B0000" />
+            <Text className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 ml-1.5">
+              School of Computer and Information Sciences · UoH
+            </Text>
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Alumni Community Modal */}
+      <AlumniCommunityModal
+        visible={showAlumniModal}
+        onClose={() => setShowAlumniModal(false)}
+      />
     </SafeAreaView>
   );
 }
