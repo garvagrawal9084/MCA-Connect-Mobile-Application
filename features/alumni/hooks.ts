@@ -161,6 +161,9 @@ export function useAlumniForums() {
   const forums = useAlumniStore((s) => s.forums);
   const isLoading = useAlumniStore((s) => s.isLoadingForums);
   const pagination = useAlumniStore((s) => s.forumsPagination);
+  const createTopic = useAlumniStore((s) => s.createForumTopic);
+  const addReply = useAlumniStore((s) => s.addForumReply);
+  const toggleLike = useAlumniStore((s) => s.toggleForumLike);
 
   useEffect(() => {
     fetchForums();
@@ -177,6 +180,9 @@ export function useAlumniForums() {
         fetchForums(pagination.page + 1);
       }
     },
+    createTopic,
+    addReply,
+    toggleLike,
     refetch: fetchForums,
   };
 }

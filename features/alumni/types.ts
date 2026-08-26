@@ -271,6 +271,9 @@ export interface ForumTopic {
   views?: number;
   pinned?: boolean;
   closed?: boolean;
+  likeCount?: number;
+  replyCount?: number;
+  isLiked?: boolean;
   createdAt: string;
   updatedAt: string;
 }

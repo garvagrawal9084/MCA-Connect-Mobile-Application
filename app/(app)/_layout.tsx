@@ -8,7 +8,7 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="alumni" />
+      <Stack.Screen name="alumni" options={{ headerShown: false }} />
     </Stack>
   );
 }

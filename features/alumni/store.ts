@@ -54,6 +54,9 @@ export interface AlumniState {
   createPost: (content: string, type?: string, tags?: string[]) => Promise<boolean>;
   toggleLike: (postId: string) => Promise<void>;
   fetchForums: (page?: number, search?: string) => Promise<void>;
+  createForumTopic: (title: string, content: string, tags?: string[]) => Promise<boolean>;
+  addForumReply: (topicId: string, text: string) => Promise<boolean>;
+  toggleForumLike: (topicId: string) => Promise<void>;
   fetchStats: () => Promise<void>;
   setSearchQuery: (query: string) => void;
   setActiveFilters: (filters: AlumniSearchFilters) => void;
@@ -263,6 +266,57 @@ export const useAlumniStore = create<AlumniState>((set, get) => ({
       const message = err instanceof Error ? err.message : "Failed to fetch forums";
       logger.error("ALUMNI_STORE", message, err);
       set({ isLoadingForums: false, error: message });
+    }
+  },
+
+  createForumTopic: async (title, content, tags = []) => {
+    set({ error: null });
+    try {
+      await alumniApi.createForumTopic({ title, content, tags });
+      await get().fetchForums(1);
+      return true;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Failed to create topic";
+      logger.error("ALUMNI_STORE", errMsg, err);
+      set({ error: errMsg });
+      return false;
+    }
+  },
+
+  addForumReply: async (topicId, text) => {
+    set({ error: null });
+    try {
+      const response = await alumniApi.addForumReply(topicId, text);
+      if (response.data) {
+        set((state) => ({
+          forums: state.forums.map((t) =>
+            t._id === topicId ? { ...t, replies: response.data!.replies } : t
+          ),
+        }));
+      }
+      return true;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Failed to add reply";
+      logger.error("ALUMNI_STORE", errMsg, err);
+      set({ error: errMsg });
+      return false;
+    }
+  },
+
+  toggleForumLike: async (topicId) => {
+    try {
+      const response = await alumniApi.toggleForumLike(topicId);
+      if (response.data) {
+        set((state) => ({
+          forums: state.forums.map((t) =>
+            t._id === topicId
+              ? { ...t, likeCount: response.data!.likeCount, isLiked: response.data!.isLiked }
+              : t
+          ),
+        }));
+      }
+    } catch (err) {
+      logger.error("ALUMNI_STORE", "Failed to toggle forum like", err);
     }
   },
 

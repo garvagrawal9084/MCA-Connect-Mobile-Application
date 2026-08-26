@@ -136,6 +136,40 @@ export const alumniApi = {
     return apiClient.get("/api/community/stats");
   },
 
+  async getFamilyCounts(): Promise<ApiResponse<{ counts: Record<string, number> }>> {
+    logger.info("ALUMNI_API", "Fetching SCIS family counts");
+    return apiClient.get("/api/mca-family/family-counts");
+  },
+
+  async getEvents(params: { startDate?: string; endDate?: string; eventType?: string; page?: number; limit?: number } = {}): Promise<ApiResponse<{ events: Array<{
+    _id: string;
+    title: string;
+    description: string;
+    fromDate: string;
+    toDate: string | null;
+    eventType: string;
+    color: string;
+    targetAudience: string;
+    isAllDay: boolean;
+    startTime: string | null;
+    endTime: string | null;
+    createdBy: { id: string; name: string; email: string } | null;
+    createdAt: string;
+  }>; pagination?: { page: number; limit: number; total: number; totalPages: number } }>> {
+    const query = buildQueryString({ startDate: params.startDate, endDate: params.endDate, eventType: params.eventType, page: params.page || 1, limit: params.limit || 50 });
+    logger.info("ALUMNI_API", `Fetching events: ${query}`);
+    return apiClient.get(`/api/calendar${query}`);
+  },
+
+  async getFamilyBatchMembers(
+    program: string,
+    params: { batch?: string; q?: string; page?: number; limit?: number } = {}
+  ): Promise<ApiResponse<{ members: Array<Record<string, unknown>>; pagination: { page: number; limit: number; total: number; totalPages: number } }>> {
+    const query = buildQueryString({ program, batch: params.batch || "all", q: params.q, page: params.page || 1, limit: params.limit || 50 });
+    logger.info("ALUMNI_API", `Fetching family batch members: ${query}`);
+    return apiClient.get(`/api/mca-family/batch-members${query}`);
+  },
+
   async getForums(
     page: number = 1,
     limit: number = 20,
@@ -145,6 +179,35 @@ export const alumniApi = {
     const query = buildQueryString({ page, limit, tag, search });
     logger.info("ALUMNI_API", "Fetching forums");
     return apiClient.get(`/api/forums${query}`);
+  },
+
+  async getForumTopic(topicId: string): Promise<ApiResponse<{ topic: ForumTopic }>> {
+    logger.info("ALUMNI_API", `Fetching forum topic: ${topicId}`);
+    return apiClient.get(`/api/forums/${topicId}`);
+  },
+
+  async createForumTopic(payload: {
+    title: string;
+    content: string;
+    tags?: string[];
+  }): Promise<ApiResponse<{ topic: ForumTopic }>> {
+    logger.info("ALUMNI_API", "Creating forum topic");
+    return apiClient.post("/api/forums", payload);
+  },
+
+  async addForumReply(topicId: string, text: string): Promise<ApiResponse<{ replies: ForumTopic["replies"] }>> {
+    logger.info("ALUMNI_API", `Adding reply to forum topic: ${topicId}`);
+    return apiClient.post(`/api/forums/${topicId}/reply`, { text });
+  },
+
+  async toggleForumLike(topicId: string): Promise<ApiResponse<{ likeCount: number; isLiked: boolean }>> {
+    logger.info("ALUMNI_API", `Toggling like on forum topic: ${topicId}`);
+    return apiClient.post(`/api/forums/${topicId}/like`);
+  },
+
+  async closeForumTopic(topicId: string): Promise<ApiResponse<{ message: string }>> {
+    logger.info("ALUMNI_API", `Closing forum topic: ${topicId}`);
+    return apiClient.patch(`/api/forums/${topicId}/close`);
   },
 
   async followUser(userId: string): Promise<ApiResponse<{ message: string }>> {
