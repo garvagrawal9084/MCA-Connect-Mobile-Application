@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { PlacementStudioCard } from "@/components/home/PlacementStudioCard";
 import { AlumniNetworkCard } from "@/components/home/AlumniNetworkCard";
-import { AlumniCommunityModal } from "@/components/home/AlumniCommunityModal";
 import { useAuthStore } from "@/features/auth/authStore";
 import { logger } from "@/utils/logger";
 
@@ -22,8 +21,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-
-  const [showAlumniModal, setShowAlumniModal] = useState<boolean>(false);
 
   // Extract first name capitalized for the header
   const getFirstName = () => {
@@ -54,10 +51,10 @@ export default function HomeScreen() {
 
   const handleExploreNetwork = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    logger.info("HOME", "Student opened Alumni Network Under Construction preview modal", {
+    logger.info("HOME", "Student navigated to Alumni Network Directory", {
       student: user?.email,
     });
-    setShowAlumniModal(true);
+    router.push("/(app)/alumni" as never);
   };
 
   const handleSignOut = () => {
@@ -168,11 +165,6 @@ export default function HomeScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Alumni Community Modal */}
-      <AlumniCommunityModal
-        visible={showAlumniModal}
-        onClose={() => setShowAlumniModal(false)}
-      />
     </SafeAreaView>
   );
 }

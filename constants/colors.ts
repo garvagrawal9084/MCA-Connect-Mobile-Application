@@ -86,9 +86,9 @@ export const colors = {
       border: "#FED7AA",
     },
     alumni: {
-      primary: "#7C3AED",
-      bg: "#FAF5FF",
-      border: "#E9D5FF",
+      primary: "#8B0000",
+      bg: "#FEF2F2",
+      border: "#FECACA",
     },
     community: {
       primary: "#0D9488",

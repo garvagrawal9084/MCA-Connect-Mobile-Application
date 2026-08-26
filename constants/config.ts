@@ -25,6 +25,18 @@ export const API_CONFIG = {
     PROFILE: {
       ME: "/api/profile/me",
     },
+    ALUMNI: {
+      SEARCH: "/api/people/search",
+      COMPANIES: "/api/people/companies",
+      MENTORS: "/api/mentorship/mentors",
+      MENTORSHIP_REQUEST: "/api/mentorship",
+      MY_REQUESTS: "/api/mentorship/mine",
+      POSTS: "/api/posts",
+      FORUMS: "/api/forums",
+      COMMUNITY_STATS: "/api/community/stats",
+      COMMUNITY_SETTINGS: "/api/community-settings",
+      FOLLOW: "/api/follow",
+    },
   },
 } as const;
 

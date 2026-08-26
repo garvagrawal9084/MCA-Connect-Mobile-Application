@@ -8,6 +8,7 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="alumni" />
     </Stack>
   );
 }
