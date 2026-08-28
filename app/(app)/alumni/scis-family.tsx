@@ -92,7 +92,7 @@ export default function ScisFamilyScreen() {
           <Text className="text-sm font-bold text-slate-900 dark:text-white">SCIS Family</Text>
           <View className="w-10" />
         </View>
-        <Text className="text-xs text-slate-400 text-center">{totalCount} members across {programs.length} programs</Text>
+        <Text className="text-xs text-slate-400 dark:text-slate-500 text-center">{totalCount} members across {programs.length} programs</Text>
       </Animated.View>
 
       {/* Program Grid */}
@@ -108,7 +108,7 @@ export default function ScisFamilyScreen() {
         ) : programs.length === 0 ? (
           <View className="items-center py-12">
             <Ionicons name="people-outline" size={48} color="#94A3B8" />
-            <Text className="text-sm text-slate-500 mt-3 text-center">No programs found</Text>
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">No programs found</Text>
           </View>
         ) : (
           <View className="flex-row flex-wrap">

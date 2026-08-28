@@ -87,7 +87,7 @@ export default function FollowListScreen() {
           <Text className="text-sm font-bold text-slate-900 dark:text-white">{title}</Text>
           <View className="w-10" />
         </View>
-        <Text className="text-xs text-slate-400 text-center">{users.length} {users.length === 1 ? "person" : "people"}</Text>
+        <Text className="text-xs text-slate-400 dark:text-slate-500 text-center">{users.length} {users.length === 1 ? "person" : "people"}</Text>
       </Animated.View>
 
       {isLoading ? (
@@ -97,12 +97,12 @@ export default function FollowListScreen() {
       ) : error ? (
         <View className="flex-1 items-center justify-center px-6">
           <Ionicons name="alert-circle-outline" size={48} color="#94A3B8" />
-          <Text className="text-sm text-slate-500 mt-3 text-center">{error}</Text>
+          <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">{error}</Text>
         </View>
       ) : users.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
           <Ionicons name="people-outline" size={48} color="#94A3B8" />
-          <Text className="text-sm text-slate-500 mt-3 text-center">No {title.toLowerCase()} yet</Text>
+          <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">No {title.toLowerCase()} yet</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>

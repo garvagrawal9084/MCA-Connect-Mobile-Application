@@ -124,7 +124,7 @@ export default function EventsScreen() {
           <Text className="text-sm font-bold text-slate-900 dark:text-white">Upcoming Events</Text>
           <View className="w-10" />
         </View>
-        <Text className="text-xs text-slate-400 text-center">{events.length} events found</Text>
+        <Text className="text-xs text-slate-400 dark:text-slate-500 text-center">{events.length} events found</Text>
       </Animated.View>
 
       {/* Events List */}
@@ -140,7 +140,7 @@ export default function EventsScreen() {
         ) : events.length === 0 ? (
           <View className="items-center py-12">
             <Ionicons name="calendar-outline" size={48} color="#94A3B8" />
-            <Text className="text-sm text-slate-500 mt-3 text-center">No upcoming events</Text>
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">No upcoming events</Text>
           </View>
         ) : (
           events.map((event, index) => {
@@ -160,30 +160,30 @@ export default function EventsScreen() {
                     </View>
                     <View className="flex-row items-center">
                       <Ionicons name="time-outline" size={12} color="#94A3B8" />
-                      <Text className="text-[10px] text-slate-400 ml-1">{formatEventDate(event.fromDate)}</Text>
+                      <Text className="text-[10px] text-slate-400 dark:text-slate-500 ml-1">{formatEventDate(event.fromDate)}</Text>
                     </View>
                   </View>
                   <Text className="text-sm font-bold text-slate-900 dark:text-white mb-1">{event.title}</Text>
                   {event.description ? (
-                    <Text className="text-[11px] text-slate-500 leading-4 mb-2" numberOfLines={2}>{event.description}</Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400 leading-4 mb-2" numberOfLines={2}>{event.description}</Text>
                   ) : null}
                   <View className="flex-row items-center mt-1">
                     <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
-                    <Text className="text-[11px] text-slate-500 ml-1">{formatEventDate(event.fromDate)}</Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400 ml-1">{formatEventDate(event.fromDate)}</Text>
                     {event.toDate && (
-                      <Text className="text-[11px] text-slate-400"> - {formatEventDate(event.toDate)}</Text>
+                      <Text className="text-[11px] text-slate-400 dark:text-slate-500"> - {formatEventDate(event.toDate)}</Text>
                     )}
                   </View>
                   {timeDisplay && (
                     <View className="flex-row items-center mt-0.5">
                       <Ionicons name="time-outline" size={12} color="#94A3B8" />
-                      <Text className="text-[11px] text-slate-500 ml-1">{timeDisplay}</Text>
+                      <Text className="text-[11px] text-slate-500 dark:text-slate-400 ml-1">{timeDisplay}</Text>
                     </View>
                   )}
                   {event.createdBy && (
                     <View className="flex-row items-center mt-0.5">
                       <Ionicons name="person-outline" size={12} color="#94A3B8" />
-                      <Text className="text-[11px] text-slate-500 ml-1">by {event.createdBy.name}</Text>
+                      <Text className="text-[11px] text-slate-500 dark:text-slate-400 ml-1">by {event.createdBy.name}</Text>
                     </View>
                   )}
                 </TouchableOpacity>

@@ -74,7 +74,7 @@ export default function BatchesScreen() {
           <Text className="text-sm font-bold text-slate-900 dark:text-white">Batches</Text>
           <View className="w-10" />
         </View>
-        <Text className="text-xs text-slate-400 text-center">
+        <Text className="text-xs text-slate-400 dark:text-slate-500 text-center">
           {users.length} members in batch {selectedYear}
         </Text>
       </View>
@@ -114,7 +114,7 @@ export default function BatchesScreen() {
         ) : users.length === 0 ? (
           <View className="items-center py-12">
             <Ionicons name="people-outline" size={48} color="#94A3B8" />
-            <Text className="text-sm text-slate-500 mt-3 text-center">No members found for batch {selectedYear}</Text>
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">No members found for batch {selectedYear}</Text>
           </View>
         ) : (
           <View className="flex-row flex-wrap">

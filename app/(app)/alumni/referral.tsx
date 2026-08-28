@@ -83,7 +83,7 @@ export default function ReferralScreen() {
           <Text className="text-sm font-bold text-slate-900 dark:text-white">Referral Hub</Text>
           <View className="w-10" />
         </View>
-        <Text className="text-xs text-slate-400 text-center">{referrers.length} people available for referrals</Text>
+        <Text className="text-xs text-slate-400 dark:text-slate-500 text-center">{referrers.length} people available for referrals</Text>
       </Animated.View>
 
       {isLoading ? (
@@ -99,7 +99,7 @@ export default function ReferralScreen() {
           {referrers.length === 0 ? (
             <View className="items-center justify-center py-12">
               <Ionicons name="git-pull-request-outline" size={48} color="#94A3B8" />
-              <Text className="text-sm text-slate-500 mt-3 text-center">No referrers found right now</Text>
+              <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">No referrers found right now</Text>
             </View>
           ) : (
             referrers.map((user, index) => {
@@ -123,9 +123,9 @@ export default function ReferralScreen() {
                     <View className="ml-3 flex-1">
                       <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={1}>{user.name}</Text>
                       {user.currentPosition && user.company ? (
-                        <Text className="text-[11px] text-slate-500" numberOfLines={1}>{user.currentPosition} at {user.company}</Text>
+                        <Text className="text-[11px] text-slate-500 dark:text-slate-400" numberOfLines={1}>{user.currentPosition} at {user.company}</Text>
                       ) : user.roll_no ? (
-                        <Text className="text-[11px] text-slate-500">{user.roll_no}</Text>
+                        <Text className="text-[11px] text-slate-500 dark:text-slate-400">{user.roll_no}</Text>
                       ) : null}
                     </View>
                     <View className="bg-amber-50 dark:bg-amber-900/40 px-2.5 py-1 rounded-full">

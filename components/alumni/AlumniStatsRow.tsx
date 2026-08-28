@@ -1,34 +1,62 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-interface StatsCardProps {
-  label: string;
-  value: number;
-  icon: string;
+interface TilePalette {
   color: string;
   bgColor: string;
   borderColor: string;
 }
 
-const StatsCard: React.FC<StatsCardProps> = ({
-  label,
-  value,
-  icon,
-  color,
-  bgColor,
-  borderColor,
-}) => {
+interface TileConfig {
+  label: string;
+  icon: string;
+  light: TilePalette;
+  dark: TilePalette;
+}
+
+const TILE_CONFIGS: TileConfig[] = [
+  {
+    label: "Alumni",
+    icon: "school-outline",
+    light: { color: "#8B0000", bgColor: "#FEF2F2", borderColor: "#FECACA" },
+    dark: { color: "#FCA5A5", bgColor: "#450A0A", borderColor: "#7F1D1D" },
+  },
+  {
+    label: "Community",
+    icon: "people-outline",
+    light: { color: "#0D9488", bgColor: "#F0FDFA", borderColor: "#99F6E4" },
+    dark: { color: "#5EEAD4", bgColor: "#134E4A", borderColor: "#0F766E" },
+  },
+  {
+    label: "Connections",
+    icon: "git-network-outline",
+    light: { color: "#2563EB", bgColor: "#EFF6FF", borderColor: "#BFDBFE" },
+    dark: { color: "#93C5FD", bgColor: "#1E3A5F", borderColor: "#1D4ED8" },
+  },
+];
+
+interface StatsCardProps {
+  label: string;
+  value: number;
+  icon: string;
+  palette: TilePalette;
+  scheme: "light" | "dark" | null | undefined;
+}
+
+const StatsCard: React.FC<StatsCardProps> = ({ label, value, icon, palette, scheme }) => {
+  const isDark = scheme === "dark";
+
   return (
     <View
       className="flex-1 p-3 rounded-2xl items-center"
-      style={{ backgroundColor: bgColor, borderColor, borderWidth: 1 }}
+      style={{ backgroundColor: palette.bgColor, borderColor: palette.borderColor, borderWidth: 1 }}
     >
       <View
         className="w-9 h-9 rounded-xl items-center justify-center mb-2"
-        style={{ backgroundColor: `${color}15` }}
+        style={{ backgroundColor: `${palette.color}${isDark ? "33" : "15"}` }}
       >
-        <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={17} color={color} />
+        <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={17} color={palette.color} />
       </View>
       <Text className="text-lg font-black text-slate-900 dark:text-white">{value.toLocaleString()}</Text>
       <Text className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 text-center">
@@ -51,6 +79,10 @@ export const AlumniStatsRow: React.FC<AlumniStatsRowProps> = ({
   followersConnections,
   isLoading,
 }) => {
+  const scheme = useColorScheme();
+
+  const values = [alumniRegistered, totalRegistered, followersConnections];
+
   if (isLoading) {
     return (
       <View className="flex-row gap-2 mb-5">
@@ -63,30 +95,16 @@ export const AlumniStatsRow: React.FC<AlumniStatsRowProps> = ({
 
   return (
     <View className="flex-row gap-2 mb-5">
-      <StatsCard
-        label="Alumni"
-        value={alumniRegistered}
-        icon="school-outline"
-        color="#8B0000"
-        bgColor="#FEF2F2"
-        borderColor="#FECACA"
-      />
-      <StatsCard
-        label="Community"
-        value={totalRegistered}
-        icon="people-outline"
-        color="#0D9488"
-        bgColor="#F0FDFA"
-        borderColor="#99F6E4"
-      />
-      <StatsCard
-        label="Connections"
-        value={followersConnections}
-        icon="git-network-outline"
-        color="#2563EB"
-        bgColor="#EFF6FF"
-        borderColor="#BFDBFE"
-      />
+      {TILE_CONFIGS.map((config, index) => (
+        <StatsCard
+          key={config.label}
+          label={config.label}
+          value={values[index]}
+          icon={config.icon}
+          palette={scheme === "dark" ? config.dark : config.light}
+          scheme={scheme}
+        />
+      ))}
     </View>
   );
 };

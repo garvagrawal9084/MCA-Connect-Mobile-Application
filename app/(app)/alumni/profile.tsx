@@ -19,6 +19,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 import { useMentorshipRequests } from "@/features/alumni/hooks";
+import { useAuthStore } from "@/features/auth/authStore";
 import { AlumniUser } from "@/features/alumni/types";
 import { logger } from "@/utils/logger";
 
@@ -115,6 +116,7 @@ export default function AlumniProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ data?: string }>();
   const { createRequest } = useMentorshipRequests();
+  const authUser = useAuthStore((s) => s.user);
 
   const fallbackProfile: ProfileData | null = params.data
     ? (() => { try { return JSON.parse(params.data); } catch { return null; } })()
@@ -130,15 +132,19 @@ export default function AlumniProfileScreen() {
   const [isSendingRequest, setIsSendingRequest] = useState(false);
 
   const fetchFullProfile = useCallback(async () => {
-    const userId = fallbackProfile?._id || fallbackProfile?.id;
+    const targetId = fallbackProfile?._id || fallbackProfile?.id;
+    const selfId = authUser?.id || authUser?._id;
+    const userId = targetId || selfId;
     if (!userId) {
       setIsLoading(false);
+      setFetchError("No user id available. Please log in and try again.");
       return;
     }
     try {
       setIsLoading(true);
       setFetchError(null);
-      const response = await apiClient.get(`/api/profile/${userId}`);
+      const endpoint = targetId ? `/api/profile/${targetId}` : "/api/profile/";
+      const response = await apiClient.get(endpoint);
       const data = response.data as Record<string, unknown>;
       if (data) {
         const userData = (data.user || data) as ProfileData;
@@ -164,7 +170,7 @@ export default function AlumniProfileScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [fallbackProfile?._id, fallbackProfile?.id]);
+  }, [fallbackProfile?._id, fallbackProfile?.id, authUser?.id, authUser?._id]);
 
   useEffect(() => {
     fetchFullProfile();
