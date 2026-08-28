@@ -1,9 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
+import { useNotificationsStore } from "@/features/notifications/store";
 
 export default function TabsLayout() {
+  const unreadCount = useNotificationsStore((state) => state.unreadCount);
+  const fetchUnreadCount = useNotificationsStore((state) => state.fetchUnreadCount);
+
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [fetchUnreadCount]);
   return (
     <Tabs
       screenOptions={{
@@ -56,6 +63,12 @@ export default function TabsLayout() {
         name="notifications"
         options={{
           title: "Notifications",
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: "#8B0000",
+            fontSize: 10,
+            fontWeight: "bold",
+          },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "notifications" : "notifications-outline"}

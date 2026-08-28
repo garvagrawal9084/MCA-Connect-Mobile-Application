@@ -79,7 +79,7 @@ export default function ContactScreen() {
             </View>
             <View className="flex-1">
               <Text className="text-sm font-bold text-slate-900 dark:text-white">Get in Touch</Text>
-              <Text className="text-[11px] text-slate-400">We'd love to hear from you</Text>
+              <Text className="text-[11px] text-slate-400">We&apos;d love to hear from you</Text>
             </View>
           </View>
           <Text className="text-xs text-slate-500 dark:text-slate-400 leading-5">
