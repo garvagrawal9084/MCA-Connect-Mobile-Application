@@ -235,7 +235,7 @@ export default function AlumniProfileScreen() {
       <SafeAreaView className="flex-1 bg-[#FAFAFA] dark:bg-slate-950 items-center justify-center">
         <StatusBar style="auto" />
         <ActivityIndicator size="large" color="#8B0000" />
-        <Text className="text-sm text-slate-400 mt-3">Loading profile...</Text>
+        <Text className="text-sm text-slate-400 dark:text-slate-500 mt-3">Loading profile...</Text>
       </SafeAreaView>
     );
   }
@@ -246,7 +246,7 @@ export default function AlumniProfileScreen() {
         <StatusBar style="auto" />
         <Ionicons name="alert-circle-outline" size={48} color="#94A3B8" />
         <Text className="text-lg font-bold text-slate-900 dark:text-white mt-4">Profile Not Found</Text>
-        {fetchError ? <Text className="text-sm text-slate-500 mt-1 text-center">{fetchError}</Text> : null}
+        {fetchError ? <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1 text-center">{fetchError}</Text> : null}
         <TouchableOpacity onPress={handleBack} className="bg-red-800 px-6 py-3 rounded-2xl mt-4">
           <Text className="text-white font-bold text-sm">Go Back</Text>
         </TouchableOpacity>
@@ -476,25 +476,25 @@ export default function AlumniProfileScreen() {
           <Section title="LeetCode" delay={320}>
             <View className="flex-row flex-wrap gap-2">
               <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 items-center">
-                <Text className="text-[10px] font-bold text-slate-500">Solved</Text>
+                <Text className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Solved</Text>
                 <Text className="text-sm font-black text-slate-800 dark:text-white">{lc.totalSolved || 0}</Text>
               </View>
               {lc.easySolved != null && (
                 <View className="bg-emerald-50 dark:bg-emerald-950/40 rounded-xl px-3 py-2 items-center">
-                  <Text className="text-[10px] font-bold text-emerald-600">Easy</Text>
-                  <Text className="text-sm font-black text-emerald-700">{lc.easySolved}</Text>
+                  <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Easy</Text>
+                  <Text className="text-sm font-black text-emerald-700 dark:text-emerald-300">{lc.easySolved}</Text>
                 </View>
               )}
               {lc.mediumSolved != null && (
                 <View className="bg-amber-50 dark:bg-amber-950/40 rounded-xl px-3 py-2 items-center">
-                  <Text className="text-[10px] font-bold text-amber-600">Medium</Text>
-                  <Text className="text-sm font-black text-amber-700">{lc.mediumSolved}</Text>
+                  <Text className="text-[10px] font-bold text-amber-600 dark:text-amber-400">Medium</Text>
+                  <Text className="text-sm font-black text-amber-700 dark:text-amber-300">{lc.mediumSolved}</Text>
                 </View>
               )}
               {lc.hardSolved != null && (
                 <View className="bg-red-50 dark:bg-red-950/40 rounded-xl px-3 py-2 items-center">
-                  <Text className="text-[10px] font-bold text-red-600">Hard</Text>
-                  <Text className="text-sm font-black text-red-700">{lc.hardSolved}</Text>
+                  <Text className="text-[10px] font-bold text-red-600 dark:text-red-400">Hard</Text>
+                  <Text className="text-sm font-black text-red-700 dark:text-red-300">{lc.hardSolved}</Text>
                 </View>
               )}
             </View>

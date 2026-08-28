@@ -96,12 +96,21 @@ export default function SupportScreen() {
     router.back();
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBg = (status: string) => {
     switch (status?.toLowerCase()) {
-      case "open": return "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300";
-      case "pending": return "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300";
-      case "closed": return "bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400";
-      default: return "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300";
+      case "open": return "bg-emerald-100 dark:bg-emerald-900/40";
+      case "pending": return "bg-amber-100 dark:bg-amber-900/40";
+      case "closed": return "bg-slate-100 dark:bg-slate-800/40";
+      default: return "bg-blue-100 dark:bg-blue-900/40";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "open": return "text-emerald-700 dark:text-emerald-300";
+      case "pending": return "text-amber-700 dark:text-amber-300";
+      case "closed": return "text-slate-600 dark:text-slate-400";
+      default: return "text-blue-700 dark:text-blue-300";
     }
   };
 
@@ -120,7 +129,7 @@ export default function SupportScreen() {
             <Ionicons name="add" size={18} color="white" />
           </TouchableOpacity>
         </View>
-        <Text className="text-xs text-slate-400 text-center">{tickets.length} tickets</Text>
+        <Text className="text-xs text-slate-400 dark:text-slate-500 text-center">{tickets.length} tickets</Text>
       </Animated.View>
 
       {/* Tickets */}
@@ -132,12 +141,12 @@ export default function SupportScreen() {
         {isLoading ? (
           <View className="items-center py-16">
             <ActivityIndicator size="large" color="#8B0000" />
-            <Text className="text-xs text-slate-400 mt-3">Loading tickets...</Text>
+            <Text className="text-xs text-slate-400 dark:text-slate-500 mt-3">Loading tickets...</Text>
           </View>
         ) : tickets.length === 0 ? (
           <View className="items-center py-16">
             <Ionicons name="help-circle-outline" size={48} color="#94A3B8" />
-            <Text className="text-sm text-slate-500 mt-3 text-center">No support tickets yet</Text>
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">No support tickets yet</Text>
             <TouchableOpacity onPress={() => setShowCreate(true)} className="mt-4 bg-red-800 px-5 py-2.5 rounded-xl">
               <Text className="text-white text-xs font-bold">Create Ticket</Text>
             </TouchableOpacity>
@@ -148,16 +157,16 @@ export default function SupportScreen() {
               <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-xs">
                 <View className="flex-row items-start justify-between mb-2">
                   <Text className="text-sm font-bold text-slate-900 dark:text-white flex-1 mr-2" numberOfLines={1}>{ticket.subject}</Text>
-                  <View className={`px-2 py-0.5 rounded-full ${getStatusColor(ticket.status)}`}>
-                    <Text className="text-[9px] font-bold">{ticket.status || "Open"}</Text>
+                  <View className={`px-2 py-0.5 rounded-full ${getStatusBg(ticket.status)}`}>
+                    <Text className={`text-[9px] font-bold uppercase ${getStatusText(ticket.status)}`}>{ticket.status || "Open"}</Text>
                   </View>
                 </View>
-                <Text className="text-xs text-slate-500 mb-2" numberOfLines={2}>{ticket.message}</Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 mb-2" numberOfLines={2}>{ticket.message}</Text>
                 <View className="flex-row items-center justify-between">
                   <View className="bg-slate-50 dark:bg-slate-800/50 rounded-full px-2 py-0.5">
-                    <Text className="text-[9px] font-bold text-slate-500">{ticket.category || "General"}</Text>
+                    <Text className="text-[9px] font-bold text-slate-500 dark:text-slate-400">{ticket.category || "General"}</Text>
                   </View>
-                  <Text className="text-[10px] text-slate-400">
+                  <Text className="text-[10px] text-slate-400 dark:text-slate-500">
                     {new Date(ticket.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </Text>
                 </View>
@@ -176,17 +185,17 @@ export default function SupportScreen() {
             </View>
             <View className="flex-row items-center justify-between px-5 pb-3 border-b border-slate-100 dark:border-slate-800">
               <TouchableOpacity onPress={() => setShowCreate(false)}>
-                <Text className="text-xs font-bold text-slate-500">Cancel</Text>
+                <Text className="text-xs font-bold text-slate-500 dark:text-slate-400">Cancel</Text>
               </TouchableOpacity>
               <Text className="text-sm font-bold text-slate-900 dark:text-white">New Ticket</Text>
               <TouchableOpacity onPress={handleSubmit} disabled={isSubmitting}>
-                <Text className={`text-xs font-bold ${isSubmitting ? "text-slate-400" : "text-red-800"}`}>
+                <Text className={`text-xs font-bold ${isSubmitting ? "text-slate-400 dark:text-slate-500" : "text-red-800 dark:text-red-400"}`}>
                   {isSubmitting ? "Sending..." : "Submit"}
                 </Text>
               </TouchableOpacity>
             </View>
             <ScrollView className="px-5 pt-4 pb-8" showsVerticalScrollIndicator={false}>
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Category</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Category</Text>
               <View className="flex-row flex-wrap gap-2 mb-4">
                 {CATEGORIES.map((c) => (
                   <TouchableOpacity key={c} onPress={() => setCategory(c)}
@@ -195,12 +204,12 @@ export default function SupportScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Subject</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Subject</Text>
               <TextInput className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4" placeholder="Brief description" placeholderTextColor="#94A3B8" value={subject} onChangeText={setSubject} />
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Message</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Message</Text>
               <TextInput className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4" placeholder="Describe your issue in detail" placeholderTextColor="#94A3B8" value={message} onChangeText={setMessage} multiline numberOfLines={4} textAlignVertical="top" style={{ minHeight: 100 }} />
               <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} disabled={isSubmitting}
-                className={`py-3.5 rounded-2xl items-center shadow-md ${isSubmitting ? "bg-slate-400" : "bg-red-800"}`}>
+                className={`py-3.5 rounded-2xl items-center shadow-md ${isSubmitting ? "bg-slate-400 dark:bg-slate-700" : "bg-red-800"}`}>
                 <Text className="text-white font-bold text-sm">{isSubmitting ? "Submitting..." : "Submit Ticket"}</Text>
               </TouchableOpacity>
             </ScrollView>

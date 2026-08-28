@@ -79,7 +79,7 @@ export default function ContactScreen() {
             </View>
             <View className="flex-1">
               <Text className="text-sm font-bold text-slate-900 dark:text-white">Get in Touch</Text>
-              <Text className="text-[11px] text-slate-400">We'd love to hear from you</Text>
+              <Text className="text-[11px] text-slate-400 dark:text-slate-500">We'd love to hear from you</Text>
             </View>
           </View>
           <Text className="text-xs text-slate-500 dark:text-slate-400 leading-5">
@@ -90,7 +90,7 @@ export default function ContactScreen() {
         {/* Contact Form */}
         <Animated.View entering={FadeInDown.delay(120).duration(280).springify().damping(20)}
           className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-          <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Subject</Text>
+          <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Subject</Text>
           <TextInput
             className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4"
             placeholder="What's this about?"
@@ -99,7 +99,7 @@ export default function ContactScreen() {
             onChangeText={setSubject}
           />
 
-          <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Message</Text>
+          <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Message</Text>
           <TextInput
             className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4"
             placeholder="Tell us more..."
@@ -116,7 +116,7 @@ export default function ContactScreen() {
             onPress={handleSubmit}
             activeOpacity={0.85}
             disabled={isSubmitting}
-            className={`py-3.5 rounded-2xl items-center shadow-md flex-row justify-center ${isSubmitting ? "bg-slate-400" : "bg-red-800"}`}
+            className={`py-3.5 rounded-2xl items-center shadow-md flex-row justify-center ${isSubmitting ? "bg-slate-400 dark:bg-slate-700" : "bg-red-800"}`}
           >
             {isSubmitting ? (
               <ActivityIndicator size="small" color="white" />

@@ -223,7 +223,7 @@ export default function DirectoryScreen() {
                   <Ionicons name="search" size={18} color="white" />
                 </TouchableOpacity>
               </View>
-              <Text className="text-xs text-slate-400 mt-2">{displayTotal} people found</Text>
+              <Text className="text-xs text-slate-400 dark:text-slate-500 mt-2">{displayTotal} people found</Text>
             </Animated.View>
           </>
         }
@@ -243,12 +243,12 @@ export default function DirectoryScreen() {
           displayLoading ? (
             <View className="items-center py-16">
               <ActivityIndicator size="large" color="#8B0000" />
-              <Text className="text-xs text-slate-400 mt-3">Loading people...</Text>
+              <Text className="text-xs text-slate-400 dark:text-slate-500 mt-3">Loading people...</Text>
             </View>
           ) : (
             <View className="items-center py-12">
               <Ionicons name="people-outline" size={48} color="#94A3B8" />
-              <Text className="text-sm text-slate-500 mt-3 text-center">No people found</Text>
+              <Text className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center">No people found</Text>
             </View>
           )
         }
@@ -272,7 +272,7 @@ export default function DirectoryScreen() {
             </View>
             <ScrollView className="px-5 pt-4 pb-8" showsVerticalScrollIndicator={false}>
               {/* Type */}
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Type</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Type</Text>
               <View className="flex-row flex-wrap gap-2 mb-4">
                 {TYPE_FILTERS.map((t) => (
                   <TouchableOpacity key={t.value} onPress={() => setFilterType(t.value)}
@@ -282,7 +282,7 @@ export default function DirectoryScreen() {
                 ))}
               </View>
               {/* Stream */}
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Stream</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Stream</Text>
               <View className="flex-row flex-wrap gap-2 mb-4">
                 {STREAM_OPTIONS.map((s) => (
                   <TouchableOpacity key={s.value} onPress={() => setFilterStream(s.value)}
@@ -292,27 +292,27 @@ export default function DirectoryScreen() {
                 ))}
               </View>
               {/* Batch Year */}
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Batch Year</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Batch Year</Text>
               <TextInput className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4" placeholder="e.g. 2024" placeholderTextColor="#94A3B8" value={filterBatch} onChangeText={setFilterBatch} keyboardType="numeric" />
               {/* Company */}
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Company</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Company</Text>
               <TextInput className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4" placeholder="e.g. Google" placeholderTextColor="#94A3B8" value={filterCompany} onChangeText={setFilterCompany} />
               {/* Skills */}
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Skills</Text>
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Skills</Text>
               <TextInput className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4" placeholder="React, Node.js (comma separated)" placeholderTextColor="#94A3B8" value={filterSkills} onChangeText={setFilterSkills} />
               {/* Toggles */}
               <View className="flex-row items-center justify-between mb-3">
                 <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">Open to Work</Text>
                 <TouchableOpacity onPress={() => setFilterOpenToWork(!filterOpenToWork)}
                   className={`w-12 h-7 rounded-full items-center justify-center ${filterOpenToWork ? "bg-red-800" : "bg-slate-200 dark:bg-slate-700"}`}>
-                  <View className={`w-5 h-5 rounded-full bg-white shadow-sm ${filterOpenToWork ? "ml-5" : "ml-0"}`} />
+                  <View className={`w-5 h-5 rounded-full bg-white dark:bg-slate-100 shadow-sm ${filterOpenToWork ? "ml-5" : "ml-0"}`} />
                 </TouchableOpacity>
               </View>
               <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">Referral Available</Text>
                 <TouchableOpacity onPress={() => setFilterReferral(!filterReferral)}
                   className={`w-12 h-7 rounded-full items-center justify-center ${filterReferral ? "bg-red-800" : "bg-slate-200 dark:bg-slate-700"}`}>
-                  <View className={`w-5 h-5 rounded-full bg-white shadow-sm ${filterReferral ? "ml-5" : "ml-0"}`} />
+                  <View className={`w-5 h-5 rounded-full bg-white dark:bg-slate-100 shadow-sm ${filterReferral ? "ml-5" : "ml-0"}`} />
                 </TouchableOpacity>
               </View>
               {/* Apply Button */}
