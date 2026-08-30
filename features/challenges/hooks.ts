@@ -122,6 +122,43 @@ export const useLeaderboard = (challengeId?: string, autoFetch: boolean = true) 
   };
 };
 
+export const useChallengeDailyMax = (
+  challengeId?: string,
+  autoFetch: boolean = true,
+  batch: string = "OVERALL"
+) => {
+  const challengeDailyMax = useChallengeStore(
+    (state) => state.challengeDailyMax
+  );
+  const isLoading = useChallengeStore((state) => state.isLoadingDailyMax);
+  const error = useChallengeStore((state) => state.error);
+  const fetchChallengeDailyMax = useChallengeStore(
+    (state) => state.fetchChallengeDailyMax
+  );
+
+  const records = challengeId ? challengeDailyMax[challengeId] || [] : [];
+
+  useEffect(() => {
+    if (autoFetch && challengeId) {
+      fetchChallengeDailyMax(challengeId, batch);
+    }
+  }, [autoFetch, challengeId, batch, fetchChallengeDailyMax]);
+
+  const refresh = useCallback(() => {
+    if (challengeId) {
+      return fetchChallengeDailyMax(challengeId, batch);
+    }
+    return Promise.resolve();
+  }, [challengeId, batch, fetchChallengeDailyMax]);
+
+  return {
+    dailyMaxRecords: records,
+    isLoading,
+    error,
+    refresh,
+  };
+};
+
 export const useCertificates = (autoFetch: boolean = true) => {
   const certificates = useChallengeStore((state) => state.certificates);
   const isLoading = useChallengeStore((state) => state.isLoadingCertificates);

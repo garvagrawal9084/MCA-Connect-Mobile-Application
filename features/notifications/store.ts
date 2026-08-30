@@ -3,7 +3,7 @@
  */
 
 import { create } from "zustand";
-import { NotificationItem, normalizeNotification } from "./types";
+import { NotificationItem, normalizeNotification, InAppNotificationBannerData } from "./types";
 import { notificationsApi } from "./api";
 import { logger } from "@/utils/logger";
 
@@ -12,12 +12,15 @@ interface NotificationsState {
   unreadCount: number;
   isLoading: boolean;
   jobAlertsEnabled: boolean;
+  activeBanner: InAppNotificationBannerData | null;
 
   fetchNotifications: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   toggleJobAlerts: (enabled: boolean) => void;
+  showInAppBanner: (banner: InAppNotificationBannerData) => void;
+  dismissInAppBanner: () => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>((set, get) => ({
@@ -25,6 +28,16 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   unreadCount: 0,
   isLoading: false,
   jobAlertsEnabled: true,
+  activeBanner: null,
+
+  showInAppBanner: (banner: InAppNotificationBannerData) => {
+    set({ activeBanner: banner });
+    logger.info("NOTIFICATIONS_STORE", "Displaying in-app notification banner", { id: banner.id, title: banner.title });
+  },
+
+  dismissInAppBanner: () => {
+    set({ activeBanner: null });
+  },
 
   fetchNotifications: async () => {
     set({ isLoading: true });

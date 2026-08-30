@@ -68,6 +68,18 @@
   [2026-08-30 14:31:00.150] [INFO]  [BRANDING_UI] Integrated official logo.png into app/index.tsx gateway screen, app/(auth)/login.tsx, app/(auth)/forgot-password.tsx, and Home tab university footer
   [2026-08-30 14:31:30.100] [INFO]  [DOCS] Created docs/app-logo-integration.md and learning/22-app-branding-and-asset-management.md
   [2026-08-30 14:31:40.100] [INFO]  [VERIFICATION] Ran npx tsc --noEmit: Passed with 0 errors. All assets and screens verified.
+  [2026-08-30 23:30:00.100] [INFO]  [PLACEMENT_TYPES] Added officialLink, careersPage, referralAvailable, hiddenFromUsers, and externalApplyUrl to PlacementJob and PlacementDrive
+  [2026-08-30 23:30:00.150] [INFO]  [URL_UTIL] Created utils/url.ts with formatExternalUrl and openExternalUrl (Linking + WebBrowser)
+  [2026-08-30 23:30:00.200] [INFO]  [PLACEMENT_UI] Integrated official site redirection, careers page quick-access cards, referral badges, and backend application sync in PlacementJobDetailModal.tsx & PlacementJobCard.tsx
+  [2026-08-30 23:30:00.250] [INFO]  [PLACEMENT_STORE] Added filter for hiddenFromUsers to protect non-published administrative postings from student feeds
+  [2026-08-30 23:30:00.300] [INFO]  [DOCS] Created docs/placement-official-link-apply.md and learning/23-external-job-application-integration.md
+  [2026-08-30 23:32:00.100] [INFO]  [UI_FIX] Fixed eligibleCourses, eligibleBatches, and eligibleDepartments horizontal overflow in PlacementJobDetailModal.tsx with responsive wrapping badges.
+  [2026-08-31 01:34:00.100] [INFO]  [CHALLENGES_API] Enhanced challengesApi with getChallengeLeaderboard (/api/challenges/:id/leaderboard) and getChallengeDailyMax (/api/challenges/:id/daily-max & /daily-m fallback)
+  [2026-08-31 01:34:00.150] [INFO]  [CHALLENGES_STORE] Extended useChallengeStore with challengeDailyMax cache, selectedChallengeId state, and fetchChallengeDailyMax action
+  [2026-08-31 01:34:00.200] [INFO]  [CHALLENGES_HOOKS] Added useChallengeDailyMax and enhanced useLeaderboard with responsive challenge binding
+  [2026-08-31 01:34:00.250] [INFO]  [LEADERBOARD_UI] Integrated sprint selector carousel, dual-subtabs (Leaderboard Standings vs Daily Top Solvers), and user highlighting in PlacementDetailModal.tsx
+  [2026-08-31 01:34:00.300] [INFO]  [DOCS] Created docs/challenge-leaderboard-daily-max-api.md and learning/24-challenge-leaderboard-and-daily-max-integration.md
+  [2026-08-31 01:34:00.350] [INFO]  [VERIFICATION] Executed npx tsc --noEmit: Passed with 0 errors. All contracts verified.
 
 ================================================================================
   RUNTIME ERRORS & EXCEPTION LOG
@@ -77,3 +89,27 @@
     - Root Cause: NativeWind transition-all / ring-* utilities and experimental React Compiler triggered CSS interop race condition during initial navigation tree mount.
     - Resolution: Removed web-only transition/ring utilities, switched to clean React Native styling, added explicit Stack.Screen layout declarations, and disabled experimental reactCompiler.
     - Verification: Bundling and doctor checks verified passing with 0 errors. Status: RESOLVED.
+
+  [2026-08-31 01:36:00.000] [ERROR] [NAVIGATION] Error: Couldn't find a navigation context. Have you wrapped your app with 'NavigationContainer'?
+    - Origin: components/placement/PlacementDetailModal.tsx inside Daily Top Solvers sub-tab switch
+    - Root Cause: Web-only NativeWind classes (bg-gradient-to-r, from-orange-600, to-amber-600) and shadow-xs caused NativeWind CSS interop evaluation failure during sub-tab re-render, triggering React Navigation boundary unmount.
+    - Resolution: Replaced unsupported gradient and shadow utility classes with clean, native solid color background tokens (bg-orange-600 dark:bg-orange-700), added defensive type guards for unpopulated student user objects and questions arrays in DailyMaxRecord.
+    - Verification: npx tsc --noEmit passed with 0 errors. Sub-tab toggle renders seamlessly without error boundaries. Status: RESOLVED.
+
+  [2026-08-31 01:43:00.000] [INFO]  [ZERO_DUMMY_DATA] Removed all dummy and mock datasets from PlacementDetailModal.tsx, features/placement/mockData.ts, and features/profile. All features now render clean empty states when no data is available.
+  [2026-08-31 01:43:30.000] [INFO]  [DOCS] Created docs/zero-dummy-data-policy.md and learning/25-removing-dummy-data-and-clean-empty-states.md. Verified with npx tsc --noEmit (0 errors).
+  [2026-08-31 01:45:00.000] [INFO]  [CHALLENGE_LEADERBOARD] Fixed leaderboard normalizer in store.ts to unpack nested user objects (user.name, user.roll_no, leetcodeUsername) from live API /api/challenges/:id/leaderboard.
+  [2026-08-31 01:50:00.000] [INFO]  [ZERO_SOLVE_FILTER] Filtered out empty day buckets (dailySolveCount <= 0) and zero-score unpopulated rows from /api/challenges/:id/daily-max and /leaderboard. Empty days and inactive sprints now strictly render clean "No Daily Solves Yet" / "No Leaderboard Standings Yet" empty states.
+  [2026-08-31 01:53:00.000] [INFO]  [DAILY_MAX_BATCH] Integrated ?batch=OVERAL query parameter into getChallengeDailyMax in api.ts, store.ts, and hooks.ts, with deep user extraction.
+  [2026-08-31 01:55:00.000] [INFO]  [DAILY_SOLVES_RESOLUTION] Added questions.length and topUser/rawUser solve count fallback resolution for daily-max endpoint. Verified 0 TS errors.
+  [2026-08-31 02:03:00.000] [INFO]  [CHALLENGE_URL_VERIFICATION] Verified backend API contracts for challenge 6a8c49af3bfa6e18ce7ac125 corresponding to web URL https://scisconnect.up.railway.app/challenges/6a8c49af3bfa6e18ce7ac125/leaderboard.
+  [2026-08-31 02:03:30.000] [INFO]  [CHALLENGES_CONFIG] Centralized CHALLENGES and CERTIFICATES endpoints in constants/config.ts under API_CONFIG.ENDPOINTS.
+  [2026-08-31 02:03:40.000] [INFO]  [LEADERBOARD_ENHANCEMENT] Extended LeaderboardEntry and DailyMaxRecord in features/challenges/types.ts and store.ts to unpack pairName, groupName, dailyTotal, and students arrays.
+  [2026-08-31 02:03:50.000] [INFO]  [ZERO_GRAPH_POLICY] Confirmed Leaderboard and Daily Max Solvers render entirely using mobile-first UI cards with gold/silver/bronze podium badges, student roll numbers, and solve counts without any graph libraries.
+  [2026-08-31 02:04:00.000] [INFO]  [TEST_SUITE] Executed 7 live endpoint and data normalization tests via scratch test suite: 100% PASS. TypeScript typecheck passed with 0 errors.
+
+
+
+
+
+

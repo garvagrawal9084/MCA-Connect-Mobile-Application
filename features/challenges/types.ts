@@ -90,10 +90,14 @@ export interface LeaderboardEntry {
   current: number;
   increase: number;
   score: number;
+  pairName?: string;
+  groupName?: string;
+  dailyTotal?: number;
+  leetcodeUsername?: string;
 }
 
 export interface DailyMaxRecord {
-  user: ChallengeUser;
+  user: ChallengeUser | { _id?: string; name: string; email?: string; roll_no?: string };
   leetcodeUsername: string;
   date: string;
   dailySolveCount: number;

@@ -60,6 +60,10 @@ export interface PlacementDrive {
   status: "Open" | "Closing Soon" | "Shortlisted" | "Applied";
   openings: number;
   skills: string[];
+  officialLink?: string;
+  careersPage?: string;
+  applyUrl?: string;
+  referralAvailable?: boolean;
 }
 
 export interface CertificateItem {
@@ -135,6 +139,11 @@ export interface PlacementJob {
   views?: number;
   applicationCount?: number;
   applyUrl?: string;
+  officialLink?: string;
+  careersPage?: string;
+  referralAvailable?: boolean;
+  hiddenFromUsers?: boolean;
+  externalApplyUrl?: string;
   postedBy?: {
     _id: string;
     name?: string;

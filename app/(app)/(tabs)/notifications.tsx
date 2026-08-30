@@ -91,11 +91,11 @@ export default function NotificationsScreen() {
       <View className="px-5 pt-3 pb-3 flex-row items-center justify-between">
         <View>
           <View className="flex-row items-center mb-0.5">
-            <Text className="text-[11px] font-bold text-[#8B0000] dark:text-red-400 tracking-wider uppercase">
+            <Text className="text-[11px] font-bold text-[#B91C1C] dark:text-red-400 tracking-wider uppercase">
               SCIS Connect
             </Text>
             {unreadCount > 0 && (
-              <View className="bg-[#8B0000] px-1.5 py-0.2 rounded-full ml-2">
+              <View className="bg-[#DC2626] px-1.5 py-0.2 rounded-full ml-2">
                 <Text className="text-[10px] font-bold text-white">
                   {unreadCount} NEW
                 </Text>
@@ -152,12 +152,12 @@ export default function NotificationsScreen() {
           <Ionicons
             name="briefcase"
             size={12}
-            color={filterCategory === "placement" ? "#8B0000" : "#64748B"}
+            color={filterCategory === "placement" ? "#B91C1C" : "#64748B"}
           />
           <Text
             className={`text-xs font-bold ml-1.5 ${
               filterCategory === "placement"
-                ? "text-[#8B0000] dark:text-red-400"
+                ? "text-[#B91C1C] dark:text-red-400"
                 : "text-slate-500"
             }`}
           >
@@ -188,19 +188,19 @@ export default function NotificationsScreen() {
       {/* Notifications List */}
       <ScrollView
         className="flex-1 px-5"
-        contentContainerStyle={{ paddingBottom: 60 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#8B0000"
+            tintColor="#B91C1C"
           />
         }
       >
         {isLoading && notifications.length === 0 ? (
           <View className="py-16 items-center justify-center">
-            <ActivityIndicator size="small" color="#8B0000" />
+            <ActivityIndicator size="small" color="#B91C1C" />
             <Text className="text-xs text-slate-400 mt-2 font-medium">
               Loading student notifications...
             </Text>
@@ -208,7 +208,7 @@ export default function NotificationsScreen() {
         ) : filteredList.length === 0 ? (
           <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-8 items-center justify-center my-4">
             <View className="w-14 h-14 bg-rose-50 dark:bg-rose-950/60 rounded-2xl items-center justify-center mb-3 border border-rose-200 dark:border-rose-800/80">
-              <Ionicons name="notifications-outline" size={26} color="#8B0000" />
+              <Ionicons name="notifications-outline" size={26} color="#B91C1C" />
             </View>
             <Text className="text-sm font-bold text-slate-800 dark:text-slate-200 text-center">
               {filterCategory === "placement"
@@ -218,7 +218,7 @@ export default function NotificationsScreen() {
                 : "No notifications"}
             </Text>
             <Text className="text-xs text-slate-400 text-center mt-1 px-4">
-              When new recruitment drives, internships, or campus alerts are posted, you'll see them right here.
+              {"When new recruitment drives, internships, or campus alerts are posted, you'll see them right here."}
             </Text>
           </View>
         ) : (

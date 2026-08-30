@@ -14,6 +14,7 @@ import {
   PlacementQueryParams,
 } from "./types";
 import { placementCenterApi } from "./api";
+import { jobWatcher } from "./jobWatcher";
 import { logger } from "@/utils/logger";
 
 export type PlacementFilterTab =
@@ -235,8 +236,12 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
         };
 
         const res = await placementCenterApi.getJobs(queryParams);
-        const jobs = res.data?.jobs || [];
+        const rawJobs = res.data?.jobs || [];
+        const jobs = rawJobs.filter((j) => j.hiddenFromUsers !== true);
         const total = res.data?.pagination?.total || jobs.length;
+
+        // Inspect and trigger system notification bar alerts for new jobs
+        jobWatcher.inspectAndNotifyNewJobs(jobs);
 
         set({
           jobs,
@@ -256,8 +261,10 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
           deadline: "closing_soon",
           limit: 8,
         });
+        const rawClosing = res.data?.jobs || [];
+        const closingSoonJobs = rawClosing.filter((j) => j.hiddenFromUsers !== true);
         set({
-          closingSoonJobs: res.data?.jobs || [],
+          closingSoonJobs,
           isLoadingClosingSoon: false,
         });
       } catch (err) {

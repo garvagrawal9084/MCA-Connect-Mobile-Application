@@ -1,33 +1,49 @@
 import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform } from "react-native";
+import { Platform, useColorScheme } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNotificationsStore } from "@/features/notifications/store";
 
 export default function TabsLayout() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
   const unreadCount = useNotificationsStore((state) => state.unreadCount);
   const fetchUnreadCount = useNotificationsStore((state) => state.fetchUnreadCount);
 
   useEffect(() => {
     fetchUnreadCount();
   }, [fetchUnreadCount]);
+
+  // Compute precise bottom clearance for Android gesture nav bar / iOS Home bar
+  const bottomInset = insets.bottom > 0 ? insets.bottom : (Platform.OS === "android" ? 18 : 12);
+  const tabHeight = 60 + bottomInset;
+  const paddingBottom = bottomInset + 4;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#8B0000",
-        tabBarInactiveTintColor: "#94A3B8",
+        tabBarActiveTintColor: isDark ? "#F87171" : "#B91C1C",
+        tabBarInactiveTintColor: isDark ? "#94A3B8" : "#64748B",
         tabBarStyle: {
-          height: Platform.OS === "ios" ? 88 : 64,
-          paddingBottom: Platform.OS === "ios" ? 28 : 10,
+          height: tabHeight,
+          paddingBottom: paddingBottom,
           paddingTop: 8,
-          backgroundColor: "#FFFFFF",
+          backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: "#E2E8F0",
+          borderTopColor: isDark ? "#1E293B" : "#E2E8F0",
+          shadowColor: "#000000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0.25 : 0.05,
+          shadowRadius: 6,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
+          marginTop: 2,
         },
       }}
     >
@@ -36,7 +52,6 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           headerShown: false,
-          tabBarStyle: { display: "none" },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "home" : "home-outline"}
@@ -65,7 +80,7 @@ export default function TabsLayout() {
           title: "Notifications",
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: "#8B0000",
+            backgroundColor: "#DC2626",
             fontSize: 10,
             fontWeight: "bold",
           },

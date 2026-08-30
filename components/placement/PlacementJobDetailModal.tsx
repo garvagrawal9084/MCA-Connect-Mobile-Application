@@ -1,6 +1,8 @@
 /**
  * SCIS Connect Mobile - Placement Job Detail Modal
  * Complete drill-down sheet for inspecting job details, applying, saving & setting reminders.
+ * Seamlessly opens official application portals (officialLink, careersPage, applyUrl)
+ * and synchronizes application status with the Placement Center backend.
  */
 
 import React, { useState } from "react";
@@ -12,14 +14,17 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Linking,
+  Platform,
+  StatusBar as RNStatusBar,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { PlacementJob } from "@/features/placement/types";
 import { usePlacementCenterStore } from "@/features/placement/store";
 import { useAuthStore } from "@/features/auth/authStore";
 import { placementCenterApi } from "@/features/placement/api";
+import { openExternalUrl, formatExternalUrl } from "@/utils/url";
 import { logger } from "@/utils/logger";
 
 interface PlacementJobDetailModalProps {
@@ -28,11 +33,45 @@ interface PlacementJobDetailModalProps {
   onClose: () => void;
 }
 
+/**
+ * Normalizes string, number, or array inputs into a clean array of string items.
+ * Handles comma-separated values seamlessly (e.g. "MCA, B.TECH, M.TECH").
+ */
+const normalizeStringList = (
+  input?: string[] | number[] | string | number | null
+): string[] => {
+  if (input === undefined || input === null) return [];
+  if (Array.isArray(input)) {
+    return input
+      .flatMap((item) =>
+        typeof item === "string" ? item.split(/,\s*/) : [String(item)]
+      )
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  if (typeof input === "string") {
+    return input
+      .split(/,\s*/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  if (typeof input === "number") {
+    return [String(input)];
+  }
+  return [];
+};
+
 export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = ({
   visible,
   job,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 0
+  );
+
   const [isApplying, setIsApplying] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
   const [isSendingNotice, setIsSendingNotice] = useState(false);
@@ -52,6 +91,19 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
   const isApplied = job.userState?.applied ?? false;
   const hasReminder = job.userState?.reminder ?? false;
 
+  // Resolve external portal & careers links
+  const officialUrl = formatExternalUrl(
+    job.officialLink || job.applyUrl || job.externalApplyUrl
+  );
+  const rawCareers =
+    job.careersPage ||
+    (typeof job.company === "object" && job.company
+      ? job.company.careersUrl || job.company.website
+      : undefined);
+  const careersUrl = formatExternalUrl(rawCareers);
+  const targetApplicationUrl = officialUrl || careersUrl;
+  const hasReferral = Boolean(job.referralAvailable);
+
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowReminderPicker(false);
@@ -69,20 +121,36 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
 
   const handleApply = async () => {
     if (isApplied) {
-      Alert.alert("Application Status", `You have already applied for this role. Status: ${job.userState?.applicationStatus || "Submitted"}`);
+      Alert.alert(
+        "Application Status",
+        `You have already applied for this role. Status: ${
+          job.userState?.applicationStatus || "Submitted"
+        }`
+      );
       return;
     }
 
-    if (job.applyUrl) {
+    if (targetApplicationUrl) {
       Alert.alert(
-        "External Application",
-        `This drive requires applying via company portal (${job.companyName}). Would you like to open the link?`,
+        "Official Application Site",
+        `This recruitment drive is hosted on the official company portal (${job.companyName}).\n\nWould you like to open the official site to complete your application?`,
         [
           { text: "Cancel", style: "cancel" },
           {
-            text: "Open Portal",
-            onPress: () => {
-              Linking.openURL(job.applyUrl!);
+            text: "Open Official Site ↗",
+            onPress: async () => {
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+              );
+              logger.info(
+                "PLACEMENT_APPLY",
+                `Opening official application portal: ${targetApplicationUrl} for job: ${job._id}`
+              );
+
+              // 1. Launch external browser
+              await openExternalUrl(targetApplicationUrl);
+
+              // 2. Register application in backend
               applyToJob(job._id);
             },
           },
@@ -104,15 +172,29 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
             const res = await applyToJob(job._id);
             setIsApplying(false);
             if (res.success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert("Application Submitted! 🎉", "Your application has been registered with the placement cell.");
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+              );
+              Alert.alert(
+                "Application Submitted! 🎉",
+                "Your application has been registered with the placement cell."
+              );
             } else {
-              Alert.alert("Application Notice", res.message || "Failed to submit application");
+              Alert.alert(
+                "Application Notice",
+                res.message || "Failed to submit application"
+              );
             }
           },
         },
       ]
     );
+  };
+
+  const handleDirectExternalOpen = async (url: string, title: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    logger.info("PLACEMENT_APPLY", `Directly opening link for ${title}: ${url}`);
+    await openExternalUrl(url);
   };
 
   const handleSetReminder = async (hoursBefore: number) => {
@@ -130,7 +212,10 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
     setShowReminderPicker(false);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Reminder Scheduled", `You will be alerted before deadline on ${remindDate.toLocaleDateString()}`);
+      Alert.alert(
+        "Reminder Scheduled",
+        `You will be alerted before deadline on ${remindDate.toLocaleDateString()}`
+      );
     } else {
       Alert.alert("Reminder Notice", res.message || "Could not schedule reminder");
     }
@@ -153,11 +238,16 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert(
                 "Notifications Sent! 📢",
-                `Successfully notified eligible students (notified: ${res.data?.notified || "all"}, emails: ${res.data?.emails || "0"}).`
+                `Successfully notified eligible students (notified: ${
+                  res.data?.notified || "all"
+                }, emails: ${res.data?.emails || "0"}).`
               );
             } catch (err: unknown) {
               setIsSendingNotice(false);
-              const msg = err instanceof Error ? err.message : "Failed to broadcast notifications";
+              const msg =
+                err instanceof Error
+                  ? err.message
+                  : "Failed to broadcast notifications";
               Alert.alert("Notification Notice", msg);
             }
           },
@@ -188,7 +278,10 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
     >
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
         {/* Top Navigation Bar */}
-        <View className="flex-row items-center justify-between px-5 py-4 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800">
+        <View
+          style={{ paddingTop: Math.max(topInset + 8, 16) }}
+          className="flex-row items-center justify-between px-5 pb-4 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800"
+        >
           <View className="flex-row items-center flex-1 mr-2">
             <View className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 items-center justify-center mr-2.5">
               <Ionicons name="briefcase" size={16} color="#8B0000" />
@@ -236,12 +329,30 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
                 </Text>
               </View>
 
-              <View className="flex-row items-center gap-2">
+              <View className="flex-row items-center flex-wrap gap-1.5 justify-end flex-1">
                 {job.verified !== false && (
                   <View className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full flex-row items-center">
                     <Ionicons name="star" size={10} color="#059669" />
                     <Text className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 ml-1">
                       Verified
+                    </Text>
+                  </View>
+                )}
+
+                {hasReferral && (
+                  <View className="bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded-full flex-row items-center">
+                    <Ionicons name="people" size={10} color="#2563EB" />
+                    <Text className="text-[11px] font-bold text-blue-700 dark:text-blue-300 ml-1">
+                      Referral
+                    </Text>
+                  </View>
+                )}
+
+                {officialUrl && (
+                  <View className="bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 px-2.5 py-1 rounded-full flex-row items-center">
+                    <Ionicons name="globe-outline" size={10} color="#7C3AED" />
+                    <Text className="text-[11px] font-bold text-purple-700 dark:text-purple-300 ml-1">
+                      Official Portal
                     </Text>
                   </View>
                 )}
@@ -287,7 +398,11 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
                 Compensation
               </Text>
               <Text className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-1">
-                {job.package ? `₹${job.package} LPA` : job.stipend ? `₹${job.stipend}/mo` : "Disclosed on Drive"}
+                {job.package
+                  ? `₹${job.package} LPA`
+                  : job.stipend
+                  ? `₹${job.stipend}/mo`
+                  : "Disclosed on Drive"}
               </Text>
             </View>
 
@@ -301,60 +416,219 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
             </View>
           </View>
 
+          {/* Official Application Portal Quick Action Banner */}
+          {officialUrl && (
+            <View className="bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 rounded-3xl p-4 mb-4 shadow-xs">
+              <View className="flex-row items-start justify-between">
+                <View className="flex-row items-start flex-1 mr-3">
+                  <View className="w-9 h-9 rounded-xl bg-purple-600 items-center justify-center mr-2.5 mt-0.5">
+                    <Ionicons name="globe" size={18} color="#FFFFFF" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-xs font-bold text-purple-950 dark:text-purple-100">
+                      Official Application Portal
+                    </Text>
+                    <Text
+                      className="text-[11px] text-purple-700 dark:text-purple-300 mt-0.5"
+                      numberOfLines={1}
+                    >
+                      {officialUrl}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    handleDirectExternalOpen(
+                      officialUrl,
+                      "Official Application Portal"
+                    )
+                  }
+                  activeOpacity={0.8}
+                  className="bg-purple-600 px-3 py-2 rounded-xl flex-row items-center shadow-xs"
+                >
+                  <Text className="text-xs font-bold text-white mr-1">
+                    Open Site
+                  </Text>
+                  <Ionicons name="open-outline" size={12} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Company Careers Page Banner */}
+          {careersUrl && careersUrl !== officialUrl && (
+            <View className="bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 mb-4 shadow-xs">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1 mr-3">
+                  <View className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 items-center justify-center mr-2.5">
+                    <Ionicons name="business" size={15} color="#64748B" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-xs font-bold text-slate-900 dark:text-white">
+                      Company Careers Site
+                    </Text>
+                    <Text
+                      className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5"
+                      numberOfLines={1}
+                    >
+                      {careersUrl}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    handleDirectExternalOpen(
+                      careersUrl,
+                      "Company Careers Page"
+                    )
+                  }
+                  activeOpacity={0.8}
+                  className="bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-xl flex-row items-center"
+                >
+                  <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300 mr-1">
+                    Visit Page
+                  </Text>
+                  <Ionicons name="open-outline" size={12} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {/* Eligibility Requirements Card */}
           {job.eligibility && (
             <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-xs">
-              <View className="flex-row items-center mb-3">
+              <View className="flex-row items-center mb-3.5">
                 <Ionicons name="school-outline" size={18} color="#8B0000" />
                 <Text className="text-sm font-black text-slate-900 dark:text-white ml-2">
                   Eligibility Criteria
                 </Text>
               </View>
 
-              {typeof job.eligibility.minimumCgpa === "number" && job.eligibility.minimumCgpa > 0 && (
-                <View className="flex-row justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                  <Text className="text-xs text-slate-500">Minimum CGPA</Text>
-                  <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {job.eligibility.minimumCgpa} CGPA & above
-                  </Text>
-                </View>
-              )}
-
-              {Array.isArray(job.eligibility.eligibleBatches) && job.eligibility.eligibleBatches.length > 0 && (
-                <View className="flex-row justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                  <Text className="text-xs text-slate-500">Eligible Batches</Text>
-                  <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {job.eligibility.eligibleBatches.join(", ")}
-                  </Text>
-                </View>
-              )}
-
-              {Array.isArray(job.eligibility.eligibleCourses) && job.eligibility.eligibleCourses.length > 0 && (
-                <View className="flex-row justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                  <Text className="text-xs text-slate-500">Eligible Courses</Text>
-                  <Text className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">
-                    {job.eligibility.eligibleCourses.join(", ")}
-                  </Text>
-                </View>
-              )}
-
-              {Array.isArray(job.eligibility.skills) && job.eligibility.skills.length > 0 && (
-                <View className="pt-2.5">
-                  <Text className="text-xs text-slate-500 mb-2">Required Skills</Text>
-                  <View className="flex-row flex-wrap gap-1.5">
-                    {job.eligibility.skills.map((skill, i) => (
-                      <View
-                        key={i}
-                        className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg"
-                      >
-                        <Text className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                          {skill}
-                        </Text>
-                      </View>
-                    ))}
+              {/* Minimum CGPA */}
+              {typeof job.eligibility.minimumCgpa === "number" &&
+                job.eligibility.minimumCgpa > 0 && (
+                  <View className="flex-row justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      Minimum CGPA
+                    </Text>
+                    <View className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2.5 py-0.5 rounded-lg">
+                      <Text className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                        {job.eligibility.minimumCgpa} CGPA & above
+                      </Text>
+                    </View>
                   </View>
+                )}
+
+              {/* Eligible Batches */}
+              {(() => {
+                const batches = normalizeStringList(job.eligibility?.eligibleBatches);
+                if (batches.length === 0) return null;
+                return (
+                  <View className="py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5">
+                      Eligible Batches
+                    </Text>
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {batches.map((batch, i) => (
+                        <View
+                          key={i}
+                          className="bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 px-2.5 py-1 rounded-lg"
+                        >
+                          <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {batch}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Eligible Courses / Programs */}
+              {(() => {
+                const courses = normalizeStringList(job.eligibility?.eligibleCourses);
+                if (courses.length === 0) return null;
+                return (
+                  <View className="py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5">
+                      Eligible Courses / Programs
+                    </Text>
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {courses.map((course, i) => (
+                        <View
+                          key={i}
+                          className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200/70 dark:border-rose-800/60 px-2.5 py-1 rounded-lg"
+                        >
+                          <Text className="text-[11px] font-bold text-[#8B0000] dark:text-red-400 uppercase">
+                            {course}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Eligible Departments */}
+              {(() => {
+                const depts = normalizeStringList(job.eligibility?.eligibleDepartments);
+                if (depts.length === 0) return null;
+                return (
+                  <View className="py-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5">
+                      Eligible Departments
+                    </Text>
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {depts.map((dept, i) => (
+                        <View
+                          key={i}
+                          className="bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 px-2.5 py-1 rounded-lg"
+                        >
+                          <Text className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                            {dept}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Required Skills */}
+              {(() => {
+                const skills = normalizeStringList(job.eligibility?.skills);
+                if (skills.length === 0) return null;
+                return (
+                  <View className="pt-2.5">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1.5">
+                      Required Skills
+                    </Text>
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {skills.map((skill, i) => (
+                        <View
+                          key={i}
+                          className="bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 px-2.5 py-1 rounded-lg"
+                        >
+                          <Text className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                            {skill}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Notes */}
+              {job.eligibility?.notes ? (
+                <View className="pt-2.5 border-t border-slate-100 dark:border-slate-800 mt-2">
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                    Note: {job.eligibility.notes}
+                  </Text>
                 </View>
-              )}
+              ) : null}
             </View>
           )}
 
@@ -382,7 +656,9 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
               <Ionicons name="time" size={18} color="#7C3AED" />
               <View className="ml-2.5">
                 <Text className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                  {hasReminder ? "Deadline Reminder Active" : "Set Deadline Reminder"}
+                  {hasReminder
+                    ? "Deadline Reminder Active"
+                    : "Set Deadline Reminder"}
                 </Text>
                 <Text className="text-[10px] text-purple-600 dark:text-purple-400">
                   Get notified before applications close
@@ -482,12 +758,22 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
             ) : (
               <>
                 <Ionicons
-                  name={isApplied ? "checkmark-circle" : "send"}
+                  name={
+                    isApplied
+                      ? "checkmark-circle"
+                      : targetApplicationUrl
+                      ? "open-outline"
+                      : "send"
+                  }
                   size={16}
                   color="#FFFFFF"
                 />
                 <Text className="text-sm font-bold text-white ml-2">
-                  {isApplied ? "Applied (Submitted)" : "Apply for Drive"}
+                  {isApplied
+                    ? "Applied (Submitted)"
+                    : targetApplicationUrl
+                    ? "Apply on Official Site ↗"
+                    : "Apply for Drive"}
                 </Text>
               </>
             )}
@@ -497,3 +783,5 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
     </Modal>
   );
 };
+
+export default PlacementJobDetailModal;

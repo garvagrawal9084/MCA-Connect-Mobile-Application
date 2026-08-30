@@ -1,6 +1,7 @@
 /**
  * SCIS Connect Mobile - Placement Job Card
  * Replicates the card style from the reference design.
+ * Features verified indicators, referral badges, package/stipend tags, and bookmarking.
  */
 
 import React from "react";
@@ -46,6 +47,8 @@ export const PlacementJobCard: React.FC<PlacementJobCardProps> = ({
   const isSaved = job.userState?.saved ?? false;
   const isApplied = job.userState?.applied ?? false;
   const hasVerified = job.verified !== false;
+  const hasReferral = Boolean(job.referralAvailable);
+  const hasOfficialLink = Boolean(job.officialLink || job.applyUrl || job.externalApplyUrl);
 
   const handleSavePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -84,7 +87,7 @@ export const PlacementJobCard: React.FC<PlacementJobCardProps> = ({
         />
 
         <View className="p-3.5">
-          {/* Header Row: Avatar, Title, Verified Badge */}
+          {/* Header Row: Avatar, Title, Verified & Referral Badges */}
           <View className="flex-row items-start">
             {/* Initial Letter Avatar / Logo */}
             {job.companyLogo ? (
@@ -101,7 +104,7 @@ export const PlacementJobCard: React.FC<PlacementJobCardProps> = ({
               </View>
             )}
 
-            {/* Title & Verified Badge */}
+            {/* Title & Badges */}
             <View className="flex-1 mr-1">
               <View className="flex-row items-center flex-wrap gap-1.5">
                 <Text
@@ -119,12 +122,32 @@ export const PlacementJobCard: React.FC<PlacementJobCardProps> = ({
                     </Text>
                   </View>
                 )}
+
+                {hasReferral && (
+                  <View className="bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 px-1.5 py-0.2 rounded-full flex-row items-center">
+                    <Ionicons name="people" size={8} color="#2563EB" />
+                    <Text className="text-[9px] font-bold text-blue-700 dark:text-blue-300 ml-0.5">
+                      Referral
+                    </Text>
+                  </View>
+                )}
               </View>
 
-              {/* Company Name */}
-              <Text className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-0.5">
-                {job.companyName || "Company"}
-              </Text>
+              {/* Company Name & External Portal Tag */}
+              <View className="flex-row items-center mt-0.5">
+                <Text className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                  {job.companyName || "Company"}
+                </Text>
+
+                {hasOfficialLink && (
+                  <View className="flex-row items-center ml-1.5">
+                    <Ionicons name="open-outline" size={10} color="#7C3AED" />
+                    <Text className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 ml-0.5">
+                      Official
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
 
             {/* Bookmark Action */}
@@ -179,3 +202,5 @@ export const PlacementJobCard: React.FC<PlacementJobCardProps> = ({
     </Animated.View>
   );
 };
+
+export default PlacementJobCard;

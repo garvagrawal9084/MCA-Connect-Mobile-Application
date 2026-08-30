@@ -3,6 +3,7 @@
  * Connects directly to the existing SCIS backend routes.
  */
 
+import { API_CONFIG } from "@/constants/config";
 import { apiClient, ApiResponse } from "@/services/api";
 import { logger } from "@/utils/logger";
 import {
@@ -17,11 +18,13 @@ import {
 export const challengesApi = {
   /**
    * Fetch all active, upcoming, and past challenges
-   * Endpoint: GET /api/challenges/
+   * Endpoint: GET /api/challenges
    */
   async getAllChallenges(): Promise<ApiResponse<{ challenges: Challenge[] }>> {
     logger.info("CHALLENGES_API", "Fetching all challenges");
-    return apiClient.get<{ challenges: Challenge[] }>("/api/challenges/");
+    return apiClient.get<{ challenges: Challenge[] }>(
+      API_CONFIG.ENDPOINTS.CHALLENGES.BASE
+    );
   },
 
   /**
@@ -30,7 +33,9 @@ export const challengesApi = {
    */
   async getMyChallenges(): Promise<ApiResponse<{ challenges: MyChallengeItem[] }>> {
     logger.info("CHALLENGES_API", "Fetching student enrolled challenges");
-    return apiClient.get<{ challenges: MyChallengeItem[] }>("/api/challenges/my");
+    return apiClient.get<{ challenges: MyChallengeItem[] }>(
+      API_CONFIG.ENDPOINTS.CHALLENGES.MY
+    );
   },
 
   /**
@@ -41,7 +46,9 @@ export const challengesApi = {
     id: string
   ): Promise<ApiResponse<ChallengeDetailResponse>> {
     logger.info("CHALLENGES_API", `Fetching challenge details for: ${id}`);
-    return apiClient.get<ChallengeDetailResponse>(`/api/challenges/${id}`);
+    return apiClient.get<ChallengeDetailResponse>(
+      API_CONFIG.ENDPOINTS.CHALLENGES.BY_ID(id)
+    );
   },
 
   /**
@@ -53,7 +60,7 @@ export const challengesApi = {
   > {
     logger.info("CHALLENGES_API", "Fetching global leaderboard");
     return apiClient.get<{ leaderboard: LeaderboardEntry[] }>(
-      "/api/challenges/leaderboard"
+      API_CONFIG.ENDPOINTS.CHALLENGES.GLOBAL_LEADERBOARD
     );
   },
 
@@ -63,24 +70,42 @@ export const challengesApi = {
    */
   async getChallengeLeaderboard(
     id: string
-  ): Promise<ApiResponse<{ leaderboard: LeaderboardEntry[] }>> {
+  ): Promise<
+    ApiResponse<{ leaderboard: LeaderboardEntry[] } | LeaderboardEntry[]>
+  > {
     logger.info("CHALLENGES_API", `Fetching leaderboard for challenge: ${id}`);
-    return apiClient.get<{ leaderboard: LeaderboardEntry[] }>(
-      `/api/challenges/${id}/leaderboard`
+    return apiClient.get<{ leaderboard: LeaderboardEntry[] } | LeaderboardEntry[]>(
+      API_CONFIG.ENDPOINTS.CHALLENGES.LEADERBOARD(id)
     );
   },
 
   /**
    * Fetch challenge daily max solver statistics
-   * Endpoint: GET /api/challenges/:id/daily-max
+   * Endpoint: GET /api/challenges/:id/daily-max?batch=OVERALL (with fallback to /api/challenges/:id/daily-m)
    */
   async getChallengeDailyMax(
-    id: string
-  ): Promise<ApiResponse<{ dailyMax: DailyMaxRecord[] }>> {
-    logger.info("CHALLENGES_API", `Fetching daily-max for challenge: ${id}`);
-    return apiClient.get<{ dailyMax: DailyMaxRecord[] }>(
-      `/api/challenges/${id}/daily-max`
-    );
+    id: string,
+    batch: string = "OVERALL"
+  ): Promise<
+    ApiResponse<{ dailyMax?: DailyMaxRecord[]; daily_max?: DailyMaxRecord[]; data?: DailyMaxRecord[] } | DailyMaxRecord[]>
+  > {
+    logger.info("CHALLENGES_API", `Fetching daily-max solvers for challenge: ${id}, batch: ${batch}`);
+    const endpoint = API_CONFIG.ENDPOINTS.CHALLENGES.DAILY_MAX(id, batch);
+    try {
+      return await apiClient.get<
+        { dailyMax?: DailyMaxRecord[]; daily_max?: DailyMaxRecord[]; data?: DailyMaxRecord[] } | DailyMaxRecord[]
+      >(endpoint);
+    } catch (err: unknown) {
+      logger.warn(
+        "CHALLENGES_API",
+        `Daily-max endpoint fallback: attempting /api/challenges/${id}/daily-m`,
+        err
+      );
+      const query = batch ? `?batch=${encodeURIComponent(batch)}` : "";
+      return apiClient.get<
+        { dailyMax?: DailyMaxRecord[]; daily_max?: DailyMaxRecord[]; data?: DailyMaxRecord[] } | DailyMaxRecord[]
+      >(`/api/challenges/${id}/daily-m${query}`);
+    }
   },
 
   /**

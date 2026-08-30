@@ -132,7 +132,7 @@ export default function ProfileScreen() {
       <StatusBar style="auto" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 64 }}
+        contentContainerStyle={{ paddingBottom: 130 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

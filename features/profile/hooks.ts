@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import * as Haptics from "expo-haptics";
 import { profileApi } from "./api";
-import { UserProfile, DUMMY_PROFILE_DATA } from "./types";
+import { UserProfile } from "./types";
 import { useAuthStore } from "@/features/auth/authStore";
 import { logger } from "@/utils/logger";
 
@@ -76,7 +76,6 @@ export function useProfile() {
     error,
     fetchProfile,
     refreshProfile,
-    isUsingDummyFallback: !authUser && !profile?.id,
   };
 }
 

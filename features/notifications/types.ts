@@ -47,6 +47,19 @@ export interface NotificationPreferences {
   challengeUpdates: boolean;
 }
 
+export interface InAppNotificationBannerData {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  subTitle?: string;
+  companyName?: string;
+  package?: string | number;
+  location?: string;
+  jobId?: string;
+  data?: Record<string, unknown>;
+}
+
 /**
  * Normalizes any backend notification payload shape into a consistent NotificationItem
  */

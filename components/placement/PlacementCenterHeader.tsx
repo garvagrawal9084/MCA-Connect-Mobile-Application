@@ -39,7 +39,7 @@ export const PlacementCenterHeader: React.FC<PlacementCenterHeaderProps> = ({
 
         {/* Left Icon Badge */}
         <View className="w-11 h-11 rounded-2xl bg-rose-100 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800/80 items-center justify-center mr-3">
-          <Ionicons name="briefcase" size={22} color="#8B0000" />
+          <Ionicons name="briefcase" size={22} color="#B91C1C" />
         </View>
 
         {/* Title & Subtitle */}

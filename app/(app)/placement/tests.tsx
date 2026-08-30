@@ -19,8 +19,10 @@ import {
   Modal,
   Alert,
   TextInput,
+  Platform,
+  StatusBar as RNStatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -54,6 +56,12 @@ export default function TestsAndResultsScreen() {
   const [activeAnswersModal, setActiveAnswersModal] = useState<AttemptAnswersResponse | null>(null);
   const [loadingAnalysisId, setLoadingAnalysisId] = useState<string | null>(null);
   const [loadingAnswersId, setLoadingAnswersId] = useState<string | null>(null);
+
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 0
+  );
 
   // Faculty / Admin inputs
   const [attemptIdInput, setAttemptIdInput] = useState("");
@@ -530,7 +538,10 @@ export default function TestsAndResultsScreen() {
         onRequestClose={() => setSelectedResult(null)}
       >
         <View className="flex-1 bg-[#F8FAFC] dark:bg-slate-950">
-          <View className="px-5 pt-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between">
+          <View
+            style={{ paddingTop: Math.max(topInset + 8, 16) }}
+            className="px-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between"
+          >
             <View className="flex-1 mr-2">
               <Text className="text-[10px] font-extrabold text-[#8B0000] dark:text-red-400 uppercase tracking-wider">
                 SCORECARD BREAKDOWN
@@ -664,7 +675,10 @@ export default function TestsAndResultsScreen() {
         onRequestClose={() => setActiveAnswersModal(null)}
       >
         <View className="flex-1 bg-[#F8FAFC] dark:bg-slate-950">
-          <View className="px-5 pt-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between">
+          <View
+            style={{ paddingTop: Math.max(topInset + 8, 16) }}
+            className="px-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between"
+          >
             <View>
               <Text className="text-[11px] font-extrabold text-[#8B0000] dark:text-red-400 uppercase tracking-wider">
                 QUESTION REVIEW

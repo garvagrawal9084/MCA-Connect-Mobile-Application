@@ -16,19 +16,11 @@ import { PlacementFeatureCard } from "@/components/placement/PlacementFeatureCar
 import { PlacementStatsHeader } from "@/components/placement/PlacementStatsHeader";
 import { PlacementDetailModal } from "@/components/placement/PlacementDetailModal";
 import { PlacementFeatureItem } from "@/features/placement/types";
+import { usePlacementReadinessStats } from "@/features/placement";
 import { useAuthStore } from "@/features/auth/authStore";
 import { logger } from "@/utils/logger";
 
 const PLACEMENT_FEATURES: PlacementFeatureItem[] = [
-  {
-    id: "dashboard",
-    title: "Dashboard",
-    description: "Readiness metrics, preparation roadmap & schedule",
-    icon: "grid-outline",
-    color: "#4F46E5",
-    bgColor: "bg-indigo-50 dark:bg-indigo-950/60",
-    borderColor: "border-indigo-200/80 dark:border-indigo-800/80",
-  },
   {
     id: "challenges",
     title: "Challenges",
@@ -94,13 +86,24 @@ export default function PlacementScreen() {
   const [activeModalFeature, setActiveModalFeature] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Dynamic Real-time Placement Readiness Metrics
+  const {
+    activeDrivesCount,
+    solvedCount,
+    readinessScore,
+    streakDays,
+    refresh: refreshStats,
+  } = usePlacementReadinessStats();
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTimeout(() => {
+    try {
+      await refreshStats();
+    } finally {
       setRefreshing(false);
-    }, 600);
-  }, []);
+    }
+  }, [refreshStats]);
 
   const handleFeaturePress = (feature: PlacementFeatureItem) => {
     logger.info("PLACEMENT", `Student tapped feature: ${feature.title}`, {
@@ -143,13 +146,13 @@ export default function PlacementScreen() {
       </Animated.View>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#8B0000"
+            tintColor="#B91C1C"
           />
         }
       >
@@ -159,12 +162,13 @@ export default function PlacementScreen() {
           className="px-4 mt-1"
         >
           <PlacementStatsHeader
-            solvedCount={148}
-            activeDrivesCount={3}
-            readinessScore={92}
-            streakDays={14}
+            solvedCount={solvedCount}
+            activeDrivesCount={activeDrivesCount}
+            readinessScore={readinessScore}
+            streakDays={streakDays}
           />
         </Animated.View>
+
 
         {/* Feature Boxes Grid */}
         <View className="px-3 mt-1 flex-row flex-wrap">
@@ -184,7 +188,7 @@ export default function PlacementScreen() {
           className="items-center mt-3 mb-2"
         >
           <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3.5 py-1.5 rounded-full shadow-xs">
-            <Ionicons name="shield-checkmark" size={13} color="#8B0000" />
+            <Ionicons name="shield-checkmark" size={13} color="#B91C1C" />
             <Text className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 ml-1.5">
               Placement Cell · School of Computer and Information Sciences
             </Text>

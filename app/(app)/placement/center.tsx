@@ -334,7 +334,7 @@ export default function PlacementCenterScreen() {
             <View className="flex-row items-center bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 px-3 py-1.5 rounded-full">
               <Ionicons name="search" size={12} color="#8B0000" />
               <Text className="text-[11px] font-bold text-[#8B0000] dark:text-red-400 ml-1.5">
-                Results for "{localSearch.trim()}"
+                {`Results for "${localSearch.trim()}"`}
               </Text>
             </View>
 

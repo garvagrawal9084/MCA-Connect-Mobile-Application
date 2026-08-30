@@ -7,20 +7,17 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
+  StatusBar as RNStatusBar,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import {
-  MOCK_CHALLENGES,
-  MOCK_TESTS,
-  MOCK_LEADERBOARD,
-  MOCK_DRIVES,
-  MOCK_CERTIFICATES,
-} from "@/features/placement/mockData";
 import {
   useChallenges,
   useMyChallenges,
   useLeaderboard,
+  useChallengeDailyMax,
   useCertificates,
 } from "@/features/challenges";
 import {
@@ -31,7 +28,9 @@ import {
   AttemptAnswersResponse,
   resultsApi,
 } from "@/features/results";
+import { usePlacementCenterStore } from "@/features/placement/store";
 import { useAuthStore } from "@/features/auth/authStore";
+import { openExternalUrl } from "@/utils/url";
 import { logger } from "@/utils/logger";
 
 interface PlacementDetailModalProps {
@@ -40,14 +39,37 @@ interface PlacementDetailModalProps {
   onClose: () => void;
 }
 
+const formatCertificateDate = (dateStr?: string | Date) => {
+  if (!dateStr) return "Recently";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return typeof dateStr === "string" ? dateStr : "Recently";
+    return d.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return typeof dateStr === "string" ? dateStr : "Recently";
+  }
+};
+
 export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
   visible,
   featureId,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 0
+  );
+
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("All");
   const [challengeTab, setChallengeTab] = useState<"all" | "my">("all");
   const [testSubTab, setTestSubTab] = useState<"scorecards" | "analytics" | "tips">("scorecards");
+  const [selectedLeaderboardChallengeId, setSelectedLeaderboardChallengeId] = useState<string | null>(null);
+  const [leaderboardSubTab, setLeaderboardSubTab] = useState<"rankings" | "daily">("rankings");
 
   // Analysis & Answers drilldown modal state
   const [activeAnalysisModal, setActiveAnalysisModal] = useState<ResultAnalysisResponse | null>(null);
@@ -75,12 +97,12 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
   const fetchResultAnalysis = useResultStore((state) => state.fetchResultAnalysis);
   const fetchAttemptAnswers = useResultStore((state) => state.fetchAttemptAnswers);
 
-  // Live hooks
+  // Live challenges hooks
   const {
     challenges: liveChallenges,
     isLoading: isLoadingChallenges,
     refresh: refreshChallenges,
-  } = useChallenges(visible && featureId === "challenges");
+  } = useChallenges(visible && (featureId === "challenges" || featureId === "leaderboard"));
 
   const {
     myChallenges,
@@ -92,12 +114,32 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
   const {
     leaderboard: liveLeaderboard,
     isLoading: isLoadingLeaderboard,
-  } = useLeaderboard(undefined, visible && featureId === "leaderboard");
+    refresh: refreshLeaderboard,
+  } = useLeaderboard(
+    selectedLeaderboardChallengeId || undefined,
+    visible && featureId === "leaderboard"
+  );
+
+  const activeChallengeIdForDaily =
+    selectedLeaderboardChallengeId ||
+    (liveChallenges?.[0]?._id || liveChallenges?.[0]?.id || "");
+
+  const {
+    dailyMaxRecords,
+    isLoading: isLoadingDailyMax,
+    refresh: refreshDailyMax,
+  } = useChallengeDailyMax(
+    activeChallengeIdForDaily,
+    visible && featureId === "leaderboard" && leaderboardSubTab === "daily"
+  );
 
   const {
     certificates: liveCertificates,
     isLoading: isLoadingCertificates,
   } = useCertificates(visible && featureId === "certificates");
+
+  const placementJobs = usePlacementCenterStore((state) => state.jobs);
+  const isLoadingPlacementJobs = usePlacementCenterStore((state) => state.isLoadingJobs);
 
   if (!featureId) return null;
 
@@ -219,57 +261,6 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
       Alert.alert("Enrollment", `You are now participating in ${challengeName}.`);
     }
   };
-
-  const renderDashboardContent = () => (
-    <View className="space-y-4">
-      {/* Overview Card */}
-      <View className="bg-slate-900 rounded-2xl p-5 mb-4">
-        <Text className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">
-          Placement Readiness
-        </Text>
-        <Text className="text-2xl font-black text-white mb-2">
-          Profile Strength: 92%
-        </Text>
-        <Text className="text-xs text-slate-300 leading-5">
-          You are on track for upcoming on-campus drives. Your DSA problem count and aptitude scores exceed the batch average.
-        </Text>
-      </View>
-
-      {/* Preparation Trackers */}
-      <Text className="text-sm font-bold text-slate-900 dark:text-white mb-2">
-        Syllabus Milestones
-      </Text>
-      {[
-        { topic: "Data Structures & Algorithms", progress: "88%", solved: "148 / 180" },
-        { topic: "Core CS (OS, DBMS, CN)", progress: "75%", solved: "45 / 60" },
-        { topic: "System Design & Architecture", progress: "70%", solved: "14 / 20" },
-        { topic: "Aptitude & Quants", progress: "90%", solved: "90 / 100" },
-      ].map((item, idx) => (
-        <View
-          key={idx}
-          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3"
-        >
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-xs font-bold text-slate-900 dark:text-white">
-              {item.topic}
-            </Text>
-            <Text className="text-xs font-bold text-[#8B0000] dark:text-red-400">
-              {item.progress}
-            </Text>
-          </View>
-          <View className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
-            <View
-              className="h-full bg-[#8B0000] rounded-full"
-              style={{ width: item.progress as `${number}%` }}
-            />
-          </View>
-          <Text className="text-[10px] text-slate-400">
-            Problems Solved: {item.solved}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
 
   const renderChallengesContent = () => {
     const hasLiveChallenges = liveChallenges && liveChallenges.length > 0;
@@ -508,102 +499,14 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
               );
             })
           ) : (
-            /* Fallback to Mock Practice Challenges when backend is empty */
-            <View>
-              <View className="flex-row gap-2 mb-4">
-                {["All", "Easy", "Medium", "Hard"].map((diff) => (
-                  <TouchableOpacity
-                    key={diff}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedDifficulty(diff);
-                    }}
-                    className={`px-3.5 py-1.5 rounded-full border ${
-                      selectedDifficulty === diff
-                        ? "bg-[#8B0000] border-[#8B0000]"
-                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-bold ${
-                        selectedDifficulty === diff
-                          ? "text-white"
-                          : "text-slate-600 dark:text-slate-300"
-                      }`}
-                    >
-                      {diff}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {MOCK_CHALLENGES.filter(
-                (c) =>
-                  selectedDifficulty === "All" ||
-                  c.difficulty === selectedDifficulty
-              ).map((challenge) => (
-                <View
-                  key={challenge.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3"
-                >
-                  <View className="flex-row justify-between items-start mb-2">
-                    <View className="flex-1 mr-2">
-                      <Text className="text-sm font-bold text-slate-900 dark:text-white">
-                        {challenge.title}
-                      </Text>
-                      <Text className="text-[11px] text-slate-400 mt-0.5">
-                        {challenge.category}
-                      </Text>
-                    </View>
-                    <View
-                      className={`px-2 py-0.5 rounded-full ${
-                        challenge.difficulty === "Easy"
-                          ? "bg-emerald-50 border border-emerald-200"
-                          : challenge.difficulty === "Medium"
-                          ? "bg-amber-50 border border-amber-200"
-                          : "bg-rose-50 border border-rose-200"
-                      }`}
-                    >
-                      <Text
-                        className={`text-[10px] font-bold ${
-                          challenge.difficulty === "Easy"
-                            ? "text-emerald-700"
-                            : challenge.difficulty === "Medium"
-                            ? "text-amber-700"
-                            : "text-rose-700"
-                        }`}
-                      >
-                        {challenge.difficulty}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View className="flex-row items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <View className="flex-row items-center gap-3">
-                      <Text className="text-xs font-semibold text-slate-500">
-                        +{challenge.points} pts
-                      </Text>
-                      <Text className="text-[11px] text-slate-400">
-                        Acc: {challenge.acceptanceRate}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      onPress={() =>
-                        handleActionToast(
-                          `Launching problem workspace: ${challenge.title}`
-                        )
-                      }
-                      className="bg-[#8B0000] px-3 py-1.5 rounded-xl flex-row items-center"
-                    >
-                      <Ionicons name="code-slash" size={13} color="#FFFFFF" />
-                      <Text className="text-xs font-bold text-white ml-1.5">
-                        Solve
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
+            <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 items-center my-2">
+              <Ionicons name="code-slash-outline" size={32} color="#64748B" />
+              <Text className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-2">
+                No Coding Challenges Available
+              </Text>
+              <Text className="text-xs text-slate-400 text-center mt-1">
+                There are no active coding sprints scheduled right now.
+              </Text>
             </View>
           )
         )}
@@ -695,7 +598,7 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                   Total Tests
                 </Text>
                 <Text className="text-lg font-black text-amber-950 dark:text-amber-200 mt-0.5">
-                  {hasLiveResults ? liveResults.length : MOCK_TESTS.length}
+                  {hasLiveResults ? liveResults.length : 0}
                 </Text>
               </View>
               <View className="w-px h-8 bg-amber-300/40" />
@@ -704,16 +607,38 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                   Avg Accuracy
                 </Text>
                 <Text className="text-lg font-black text-amber-950 dark:text-amber-200 mt-0.5">
-                  92.4%
+                  {hasLiveResults && liveResults.length > 0
+                    ? `${(
+                        liveResults.reduce(
+                          (acc, curr) =>
+                            acc +
+                            (curr.percentage ??
+                              (curr.totalMarks > 0
+                                ? (curr.obtainedMarks / curr.totalMarks) * 100
+                                : 0)),
+                          0
+                        ) / liveResults.length
+                      ).toFixed(1)}%`
+                    : "0%"}
                 </Text>
               </View>
               <View className="w-px h-8 bg-amber-300/40" />
               <View className="items-center flex-1">
                 <Text className="text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase">
-                  Top Percentile
+                  Highest Score
                 </Text>
                 <Text className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  96.4%
+                  {hasLiveResults && liveResults.length > 0
+                    ? `${Math.max(
+                        ...liveResults.map(
+                          (r) =>
+                            r.percentage ??
+                            (r.totalMarks > 0
+                              ? (r.obtainedMarks / r.totalMarks) * 100
+                              : 0)
+                        )
+                      ).toFixed(0)}%`
+                    : "0%"}
                 </Text>
               </View>
             </View>
@@ -915,7 +840,7 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
         {testSubTab === "tips" && (
           <View>
             {/* Improvement Trajectory Banner */}
-            <View className="bg-gradient-to-r from-emerald-600 to-teal-700 bg-emerald-700 rounded-2xl p-4 mb-4">
+            <View className="bg-teal-700 dark:bg-teal-900 rounded-2xl p-4 mb-4">
               <View className="flex-row justify-between items-center">
                 <View>
                   <Text className="text-[10px] font-extrabold text-emerald-200 uppercase tracking-widest">
@@ -1018,217 +943,469 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
 
   const renderLeaderboardContent = () => {
     const hasLiveLeaderboard = liveLeaderboard && liveLeaderboard.length > 0;
+    const hasDailyMaxRecords = dailyMaxRecords && dailyMaxRecords.length > 0;
+    const hasChallengesList = liveChallenges && liveChallenges.length > 0;
+
+    const selectedChallengeObj = liveChallenges.find(
+      (c) => (c._id || c.id) === selectedLeaderboardChallengeId
+    );
 
     return (
       <View>
-        <View className="bg-purple-900 rounded-2xl p-4 mb-4 items-center">
-          <Ionicons name="trophy" size={32} color="#FBBF24" />
-          <Text className="text-base font-black text-white mt-1">
-            SCIS Coding Leaderboard
-          </Text>
-          <Text className="text-xs text-purple-200 text-center mt-0.5">
-            Rankings refreshed live based on LeetCode problem acceptance and sprint gains.
-          </Text>
-        </View>
-
-        {isLoadingLeaderboard ? (
-          <View className="py-8 items-center justify-center">
-            <ActivityIndicator size="small" color="#8B0000" />
-            <Text className="text-xs text-slate-400 mt-2">
-              Loading rankings...
+        {/* Challenge Filter / Selector Carousel */}
+        {hasChallengesList && (
+          <View className="mb-3.5">
+            <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+              Select Coding Sprint
             </Text>
-          </View>
-        ) : hasLiveLeaderboard ? (
-          liveLeaderboard.map((entry) => {
-            const isMe =
-              currentUser?.roll_no && entry.roll_no
-                ? currentUser.roll_no === entry.roll_no
-                : currentUser?.name === entry.name;
-
-            return (
-              <View
-                key={`${entry.rank}-${entry.name}`}
-                className={`flex-row items-center p-3 rounded-2xl mb-2.5 border ${
-                  isMe
-                    ? "bg-red-50 dark:bg-red-950/60 border-[#8B0000]"
-                    : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800"
-                }`}
-              >
-                <View
-                  className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
-                    entry.rank === 1
-                      ? "bg-amber-400"
-                      : entry.rank === 2
-                      ? "bg-slate-300"
-                      : entry.rank === 3
-                      ? "bg-amber-600"
-                      : "bg-slate-100 dark:bg-slate-800"
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-black ${
-                      entry.rank <= 3
-                        ? "text-white"
-                        : "text-slate-600 dark:text-slate-300"
-                    }`}
-                  >
-                    #{entry.rank}
-                  </Text>
-                </View>
-
-                <View className="flex-1">
-                  <View className="flex-row items-center">
-                    <Text className="text-sm font-bold text-slate-900 dark:text-white">
-                      {entry.name}
-                    </Text>
-                    {isMe && (
-                      <View className="bg-[#8B0000] px-1.5 py-0.2 rounded ml-2">
-                        <Text className="text-[9px] font-bold text-white">YOU</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text className="text-[10px] text-slate-400">
-                    {entry.roll_no ? `Roll: ${entry.roll_no}` : "Student"} · +
-                    {entry.increase} gained
-                  </Text>
-                </View>
-
-                <View className="items-end">
-                  <Text className="text-sm font-black text-[#8B0000] dark:text-red-400">
-                    {entry.score} pts
-                  </Text>
-                  <Text className="text-[10px] text-slate-400">
-                    {entry.current} Solved
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          MOCK_LEADERBOARD.map((student) => (
-            <View
-              key={student.rank}
-              className={`flex-row items-center p-3 rounded-2xl mb-2.5 border ${
-                student.isCurrentUser
-                  ? "bg-red-50 dark:bg-red-950/60 border-[#8B0000]"
-                  : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800"
-              }`}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="flex-row gap-2 py-1"
             >
-              <View
-                className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
-                  student.rank === 1
-                    ? "bg-amber-400"
-                    : student.rank === 2
-                    ? "bg-slate-300"
-                    : student.rank === 3
-                    ? "bg-amber-600"
-                    : "bg-slate-100 dark:bg-slate-800"
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedLeaderboardChallengeId(null);
+                }}
+                className={`px-3 py-1.5 rounded-full border mr-1.5 ${
+                  selectedLeaderboardChallengeId === null
+                    ? "bg-[#8B0000] border-[#8B0000]"
+                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
                 }`}
               >
                 <Text
-                  className={`text-xs font-black ${
-                    student.rank <= 3
+                  className={`text-xs font-bold ${
+                    selectedLeaderboardChallengeId === null
                       ? "text-white"
                       : "text-slate-600 dark:text-slate-300"
                   }`}
                 >
-                  #{student.rank}
+                  🌐 Global Standings
                 </Text>
-              </View>
+              </TouchableOpacity>
 
-              <View className="flex-1">
-                <View className="flex-row items-center">
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white">
-                    {student.name}
-                  </Text>
-                  {student.isCurrentUser && (
-                    <View className="bg-[#8B0000] px-1.5 py-0.2 rounded ml-2">
-                      <Text className="text-[9px] font-bold text-white">YOU</Text>
-                    </View>
-                  )}
-                </View>
-                <Text className="text-[10px] text-slate-400">
-                  {student.rollNo} · {student.batch}
-                </Text>
-              </View>
+              {liveChallenges.map((challenge) => {
+                const cId = challenge._id || challenge.id || "";
+                const isSelected = selectedLeaderboardChallengeId === cId;
+                return (
+                  <TouchableOpacity
+                    key={cId}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedLeaderboardChallengeId(cId);
+                    }}
+                    className={`px-3 py-1.5 rounded-full border mr-1.5 ${
+                      isSelected
+                        ? "bg-[#8B0000] border-[#8B0000]"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-bold ${
+                        isSelected
+                          ? "text-white"
+                          : "text-slate-600 dark:text-slate-300"
+                      }`}
+                      numberOfLines={1}
+                    >
+                      {challenge.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
-              <View className="items-end">
-                <Text className="text-sm font-black text-[#8B0000] dark:text-red-400">
-                  {student.points.toLocaleString()} pts
-                </Text>
-                <Text className="text-[10px] text-slate-400">
-                  {student.solvedCount} Solved
-                </Text>
-              </View>
+        {/* Sub-tab Navigation (Standings vs Daily Max Solvers) */}
+        <View className="flex-row bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-4">
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setLeaderboardSubTab("rankings");
+            }}
+            className={`flex-1 py-2 rounded-lg items-center ${
+              leaderboardSubTab === "rankings"
+                ? "bg-white dark:bg-slate-800"
+                : ""
+            }`}
+          >
+            <View className="flex-row items-center">
+              <Ionicons
+                name="trophy"
+                size={14}
+                color={leaderboardSubTab === "rankings" ? "#7C3AED" : "#64748B"}
+              />
+              <Text
+                className={`text-xs font-bold ml-1.5 ${
+                  leaderboardSubTab === "rankings"
+                    ? "text-purple-700 dark:text-purple-300"
+                    : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                Leaderboard
+              </Text>
             </View>
-          ))
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setLeaderboardSubTab("daily");
+            }}
+            className={`flex-1 py-2 rounded-lg items-center ${
+              leaderboardSubTab === "daily"
+                ? "bg-white dark:bg-slate-800"
+                : ""
+            }`}
+          >
+            <View className="flex-row items-center">
+              <Ionicons
+                name="flame"
+                size={14}
+                color={leaderboardSubTab === "daily" ? "#EA580C" : "#64748B"}
+              />
+              <Text
+                className={`text-xs font-bold ml-1.5 ${
+                  leaderboardSubTab === "daily"
+                    ? "text-orange-700 dark:text-orange-300"
+                    : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                Daily Top Solvers
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Content: Standings Tab */}
+        {leaderboardSubTab === "rankings" ? (
+          <View>
+            <View className="bg-purple-900 rounded-2xl p-4 mb-4 items-center">
+              <Ionicons name="trophy" size={32} color="#FBBF24" />
+              <Text className="text-base font-black text-white mt-1">
+                {selectedChallengeObj
+                  ? `${selectedChallengeObj.name} Leaderboard`
+                  : "SCIS Coding Leaderboard"}
+              </Text>
+              <Text className="text-xs text-purple-200 text-center mt-0.5">
+                {selectedChallengeObj
+                  ? "Sprint standings synced live from LeetCode solve records."
+                  : "Rankings refreshed live based on LeetCode problem acceptance and sprint gains."}
+              </Text>
+            </View>
+
+            {isLoadingLeaderboard ? (
+              <View className="py-8 items-center justify-center">
+                <ActivityIndicator size="small" color="#8B0000" />
+                <Text className="text-xs text-slate-400 mt-2">
+                  Loading rankings...
+                </Text>
+              </View>
+            ) : hasLiveLeaderboard ? (
+              liveLeaderboard.map((entry, index) => {
+                const isMe =
+                  currentUser?.roll_no && entry.roll_no
+                    ? currentUser.roll_no === entry.roll_no
+                    : currentUser?.name && entry.name
+                    ? currentUser.name === entry.name
+                    : false;
+
+                return (
+                  <View
+                    key={`${entry.rank}-${entry.name}-${entry.roll_no || ""}-${index}`}
+                    className={`flex-row items-center p-3 rounded-2xl mb-2.5 border ${
+                      isMe
+                        ? "bg-red-50 dark:bg-red-950/60 border-[#8B0000]"
+                        : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800"
+                    }`}
+                  >
+                    <View
+                      className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
+                        entry.rank === 1
+                          ? "bg-amber-400"
+                          : entry.rank === 2
+                          ? "bg-slate-300"
+                          : entry.rank === 3
+                          ? "bg-amber-600"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-black ${
+                          entry.rank <= 3
+                            ? "text-white"
+                            : "text-slate-600 dark:text-slate-300"
+                        }`}
+                      >
+                        #{entry.rank}
+                      </Text>
+                    </View>
+
+                    <View className="flex-1">
+                      <View className="flex-row items-center flex-wrap">
+                        <Text className="text-sm font-bold text-slate-900 dark:text-white">
+                          {entry.name}
+                        </Text>
+                        {isMe && (
+                          <View className="bg-[#8B0000] px-1.5 py-0.5 rounded ml-2">
+                            <Text className="text-[9px] font-bold text-white">YOU</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View className="flex-row items-center flex-wrap gap-1 mt-0.5">
+                        <Text className="text-[10px] text-slate-400">
+                          {entry.roll_no ? `Roll: ${entry.roll_no} · ` : ""}
+                          +{entry.increase} gained
+                        </Text>
+                        {entry.pairName && (
+                          <View className="bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 px-1.5 py-0.5 rounded">
+                            <Text className="text-[8px] font-bold text-purple-700 dark:text-purple-300">
+                              {entry.pairName}
+                            </Text>
+                          </View>
+                        )}
+                        {entry.groupName && (
+                          <View className="bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 rounded">
+                            <Text className="text-[8px] font-bold text-blue-700 dark:text-blue-300">
+                              {entry.groupName}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+                    <View className="items-end">
+                      <Text className="text-sm font-black text-[#8B0000] dark:text-red-400">
+                        {entry.score} pts
+                      </Text>
+                      <Text className="text-[10px] text-slate-400">
+                        {entry.current} Solved
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 items-center my-2">
+                <Ionicons name="trophy-outline" size={32} color="#64748B" />
+                <Text className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-2">
+                  No Leaderboard Standings Yet
+                </Text>
+                <Text className="text-xs text-slate-400 text-center mt-1 leading-5">
+                  No student rankings have been recorded for this sprint yet. Start solving problems on LeetCode to appear on the leaderboard!
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          /* Content: Daily Top Solvers Tab */
+          <View>
+            <View className="bg-orange-600 dark:bg-orange-700 rounded-2xl p-4 mb-4 items-center">
+              <Ionicons name="flame" size={32} color="#FEF08A" />
+              <Text className="text-base font-black text-white mt-1">
+                Daily Max Solvers
+              </Text>
+              <Text className="text-xs text-orange-100 text-center mt-0.5">
+                Top performers with the highest number of verified solves on LeetCode today.
+              </Text>
+            </View>
+
+            {isLoadingDailyMax ? (
+              <View className="py-8 items-center justify-center">
+                <ActivityIndicator size="small" color="#EA580C" />
+                <Text className="text-xs text-slate-400 mt-2">
+                  Loading daily top solvers...
+                </Text>
+              </View>
+            ) : hasDailyMaxRecords ? (
+              dailyMaxRecords.map((record, index) => {
+                const studentName =
+                  (typeof record.user === "object" && record.user?.name) ||
+                  (typeof record.user === "string" ? record.user : "Student");
+                const studentRoll =
+                  typeof record.user === "object" ? record.user?.roll_no : undefined;
+                const isMe =
+                  currentUser?.roll_no && studentRoll
+                    ? currentUser.roll_no === studentRoll
+                    : currentUser?.name && studentName
+                    ? currentUser.name === studentName
+                    : false;
+
+                return (
+                  <View
+                    key={`${record.date}-${studentName}-${index}`}
+                    className={`bg-white dark:bg-slate-900 border rounded-2xl p-3.5 mb-3 ${
+                      isMe
+                        ? "border-[#8B0000] bg-red-50 dark:bg-red-950/60"
+                        : "border-slate-200/80 dark:border-slate-800"
+                    }`}
+                  >
+                    <View className="flex-row justify-between items-start mb-2">
+                      <View className="flex-1 mr-2">
+                        <View className="flex-row items-center">
+                          <Text className="text-sm font-bold text-slate-900 dark:text-white">
+                            {studentName}
+                          </Text>
+                          {isMe && (
+                            <View className="bg-[#8B0000] px-1.5 py-0.5 rounded ml-2">
+                              <Text className="text-[9px] font-bold text-white">YOU</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text className="text-[10px] text-slate-400 mt-0.5">
+                          {studentRoll ? `Roll: ${studentRoll}` : "Student"} ·{" "}
+                          {record.leetcodeUsername
+                            ? `@${record.leetcodeUsername}`
+                            : "LeetCode Coder"}
+                        </Text>
+                      </View>
+
+                      <View className="bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 px-2.5 py-1 rounded-xl items-center">
+                        <Text className="text-xs font-black text-orange-700 dark:text-orange-300">
+                          {record.dailySolveCount} Solved
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="flex-row items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 mt-1">
+                      <View className="flex-row items-center">
+                        <Ionicons name="calendar-outline" size={11} color="#94A3B8" />
+                        <Text className="text-[10px] text-slate-400 ml-1">
+                          {formatCertificateDate(record.date)}
+                        </Text>
+                      </View>
+
+                      {Array.isArray(record.questions) && record.questions.length > 0 && (
+                        <View className="flex-row items-center gap-1.5">
+                          <Text className="text-[10px] font-semibold text-slate-500">
+                            {record.questions.length} problems verified
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 items-center">
+                <Ionicons name="flame-outline" size={32} color="#EA580C" />
+                <Text className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-2">
+                  No Daily Solves Yet
+                </Text>
+                <Text className="text-xs text-slate-400 text-center mt-1 leading-5">
+                  Solve coding challenge problems today on LeetCode to claim your spot on the Daily Max leaderboard!
+                </Text>
+              </View>
+            )}
+          </View>
         )}
       </View>
     );
   };
 
-  const renderPlacementCenterContent = () => (
-    <View>
-      {MOCK_DRIVES.map((drive) => (
-        <View
-          key={drive.id}
-          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3.5"
-        >
-          <View className="flex-row justify-between items-start mb-2">
-            <View className="flex-1">
-              <Text className="text-base font-black text-slate-900 dark:text-white">
-                {drive.companyName}
-              </Text>
-              <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                {drive.role}
-              </Text>
-            </View>
-            <View className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-              <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                {drive.packageRange}
-              </Text>
-            </View>
-          </View>
+  const renderPlacementCenterContent = () => {
+    const hasJobs = placementJobs && placementJobs.length > 0;
 
-          <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5 my-2">
-            <Text className="text-[11px] text-slate-600 dark:text-slate-300 mb-1">
-              📍 <Text className="font-semibold">{drive.location}</Text>
-            </Text>
-            <Text className="text-[11px] text-slate-600 dark:text-slate-300 mb-1">
-              🎓 <Text className="font-semibold">Criteria:</Text> {drive.eligibility}
-            </Text>
-            <Text className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
-              ⏳ Deadline: {drive.deadline} ({drive.openings} openings)
+    return (
+      <View>
+        {isLoadingPlacementJobs ? (
+          <View className="py-8 items-center justify-center">
+            <ActivityIndicator size="small" color="#8B0000" />
+            <Text className="text-xs text-slate-400 mt-2">
+              Loading placement opportunities...
             </Text>
           </View>
+        ) : hasJobs ? (
+          placementJobs.map((job) => {
+            const jobUrl =
+              job.officialLink ||
+              job.applyUrl ||
+              job.careersPage ||
+              job.externalApplyUrl;
+            const packageText = job.package
+              ? `${job.package} LPA`
+              : job.stipend
+              ? `₹${job.stipend.toLocaleString()}/mo`
+              : null;
 
-          <View className="flex-row flex-wrap gap-1.5 mb-3">
-            {drive.skills.map((skill, idx) => (
+            return (
               <View
-                key={idx}
-                className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md"
+                key={job._id}
+                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3.5"
               >
-                <Text className="text-[10px] font-medium text-slate-600 dark:text-slate-300">
-                  {skill}
-                </Text>
-              </View>
-            ))}
-          </View>
+                <View className="flex-row justify-between items-start mb-2">
+                  <View className="flex-1">
+                    <Text className="text-base font-black text-slate-900 dark:text-white">
+                      {job.companyName}
+                    </Text>
+                    <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {job.title}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center gap-1.5">
+                    {packageText && (
+                      <View className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                        <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                          {packageText}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
 
-          <TouchableOpacity
-            onPress={() =>
-              handleActionToast(
-                `Applied successfully to ${drive.companyName} for ${drive.role}!`
-              )
-            }
-            className="bg-[#8B0000] py-2.5 rounded-xl items-center justify-center shadow-xs"
-          >
-            <Text className="text-xs font-bold text-white">Apply for Drive</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
-    </View>
-  );
+                <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5 my-2">
+                  {job.location && (
+                    <Text className="text-[11px] text-slate-600 dark:text-slate-300 mb-1">
+                      📍 <Text className="font-semibold">{job.location}</Text>
+                    </Text>
+                  )}
+                  {job.applicationDeadline && (
+                    <Text className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
+                      ⏳ Deadline: {formatCertificateDate(job.applicationDeadline)}
+                    </Text>
+                  )}
+                </View>
+
+                {jobUrl && (
+                  <TouchableOpacity
+                    onPress={async () => {
+                      await openExternalUrl(jobUrl);
+                      handleActionToast(
+                        `Opening official application for ${job.companyName}!`
+                      );
+                    }}
+                    className="bg-[#8B0000] py-2.5 rounded-xl flex-row items-center justify-center"
+                  >
+                    <Ionicons
+                      name="open-outline"
+                      size={14}
+                      color="#FFFFFF"
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text className="text-xs font-bold text-white">
+                      Apply on Official Site ↗
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })
+        ) : (
+          <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 items-center my-2">
+            <Ionicons name="briefcase-outline" size={32} color="#64748B" />
+            <Text className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-2">
+              No Placement Drives Posted
+            </Text>
+            <Text className="text-xs text-slate-400 text-center mt-1 leading-5">
+              There are currently no active placement drives or recruitment listings posted.
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderCertificatesContent = () => {
     const hasLiveCertificates = liveCertificates && liveCertificates.length > 0;
@@ -1281,7 +1458,7 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
 
               <View className="flex-row justify-between items-center">
                 <Text className="text-[11px] text-slate-400">
-                  Issued: {new Date(cert.issueDate).toLocaleDateString()}
+                  Issued: {formatCertificateDate(cert.issueDate)}
                 </Text>
                 <TouchableOpacity
                   onPress={() =>
@@ -1296,58 +1473,15 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
             </View>
           ))
         ) : (
-          MOCK_CERTIFICATES.map((cert) => (
-            <View
-              key={cert.id}
-              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3.5"
-            >
-              <View className="flex-row items-center mb-3">
-                <View className="w-11 h-11 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 items-center justify-center mr-3">
-                  <Ionicons
-                    name={cert.iconName as "ribbon-outline"}
-                    size={22}
-                    color="#0D9488"
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white">
-                    {cert.title}
-                  </Text>
-                  <Text className="text-[11px] text-slate-400">
-                    {cert.issuer}
-                  </Text>
-                </View>
-              </View>
-
-              <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5 flex-row justify-between items-center mb-3">
-                <View>
-                  <Text className="text-[10px] text-slate-400">CREDENTIAL ID</Text>
-                  <Text className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">
-                    {cert.credentialId}
-                  </Text>
-                </View>
-                <View className="items-end">
-                  <Text className="text-[10px] text-slate-400">GRADE</Text>
-                  <Text className="text-xs font-bold text-emerald-600">
-                    {cert.grade}
-                  </Text>
-                </View>
-              </View>
-
-              <View className="flex-row justify-between items-center">
-                <Text className="text-[11px] text-slate-400">Issued: {cert.issueDate}</Text>
-                <TouchableOpacity
-                  onPress={() =>
-                    handleActionToast(`Downloaded verified certificate: ${cert.credentialId}`)
-                  }
-                  className="bg-slate-900 dark:bg-slate-800 px-3 py-1.5 rounded-lg flex-row items-center"
-                >
-                  <Ionicons name="download-outline" size={13} color="#FFFFFF" />
-                  <Text className="text-xs font-bold text-white ml-1">Download</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
+          <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 items-center my-2">
+            <Ionicons name="ribbon-outline" size={32} color="#64748B" />
+            <Text className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-2">
+              No Certificates Earned Yet
+            </Text>
+            <Text className="text-xs text-slate-400 text-center mt-1 leading-5">
+              Complete coding sprints and verified university assessments to receive official SCIS certificates.
+            </Text>
+          </View>
         )}
       </View>
     );
@@ -1355,8 +1489,6 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
 
   const getTitle = () => {
     switch (featureId) {
-      case "dashboard":
-        return "Placement Dashboard";
       case "challenges":
         return "Coding Challenges";
       case "tests":
@@ -1381,7 +1513,10 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
     >
       <View className="flex-1 bg-[#FAFAFA] dark:bg-slate-950">
         {/* Header */}
-        <View className="px-5 pt-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between">
+        <View
+          style={{ paddingTop: Math.max(topInset + 8, 16) }}
+          className="px-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between"
+        >
           <View>
             <Text className="text-[11px] font-extrabold text-[#8B0000] dark:text-red-400 uppercase tracking-wider">
               PLACEMENT STUDIO
@@ -1403,7 +1538,6 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
           contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
           showsVerticalScrollIndicator={false}
         >
-          {featureId === "dashboard" && renderDashboardContent()}
           {featureId === "challenges" && renderChallengesContent()}
           {featureId === "tests" && renderTestsContent()}
           {featureId === "leaderboard" && renderLeaderboardContent()}
@@ -1419,7 +1553,10 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
           onRequestClose={() => setActiveAnalysisModal(null)}
         >
           <View className="flex-1 bg-[#FAFAFA] dark:bg-slate-950">
-            <View className="px-5 pt-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between">
+            <View
+              style={{ paddingTop: Math.max(topInset + 8, 16) }}
+              className="px-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between"
+            >
               <View>
                 <Text className="text-[11px] font-extrabold text-[#8B0000] dark:text-red-400 uppercase tracking-wider">
                   SCORECARD & MASTERY
@@ -1540,7 +1677,10 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
           onRequestClose={() => setActiveAnswersModal(null)}
         >
           <View className="flex-1 bg-[#FAFAFA] dark:bg-slate-950">
-            <View className="px-5 pt-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between">
+            <View
+              style={{ paddingTop: Math.max(topInset + 8, 16) }}
+              className="px-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex-row items-center justify-between"
+            >
               <View>
                 <Text className="text-[11px] font-extrabold text-[#8B0000] dark:text-red-400 uppercase tracking-wider">
                   QUESTION REVIEW

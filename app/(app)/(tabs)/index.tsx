@@ -86,7 +86,7 @@ export default function HomeScreen() {
     <SafeAreaView className="flex-1 bg-[#FAFAFA] dark:bg-slate-950">
       <StatusBar style="auto" />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         className="px-5 pt-3"
       >

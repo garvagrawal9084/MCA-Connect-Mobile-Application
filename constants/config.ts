@@ -70,6 +70,22 @@ export const API_CONFIG = {
       REPORT_CSV: "/api/assessments/results/report/csv",
       REPORT_EXCEL: "/api/assessments/results/report/excel",
     },
+    CHALLENGES: {
+      BASE: "/api/challenges",
+      MY: "/api/challenges/my",
+      GLOBAL_LEADERBOARD: "/api/challenges/leaderboard",
+      BY_ID: (id: string) => `/api/challenges/${id}`,
+      LEADERBOARD: (id: string) => `/api/challenges/${id}/leaderboard`,
+      DAILY_MAX: (id: string, batch?: string) =>
+        `/api/challenges/${id}/daily-max${batch ? `?batch=${encodeURIComponent(batch)}` : ""}`,
+      JOIN: (id: string) => `/api/challenges/${id}/join`,
+      LEAVE: (id: string) => `/api/challenges/${id}/leave`,
+    },
+    CERTIFICATES: {
+      MY: "/api/certificates/my",
+      BY_CHALLENGE: (challengeId: string) => `/api/certificates/challenge/${challengeId}`,
+      VERIFY: (serial: string) => `/api/certificates/verify/${serial}`,
+    },
   },
 } as const;
 

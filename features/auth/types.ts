@@ -48,7 +48,10 @@ export interface LeetCodeProfileItem {
   hardSolved?: number;
   date?: string;
   baselineSolved?: number;
+  streak?: number;
+  currentStreak?: number;
 }
+
 
 export interface ResumeItem {
   id?: string;
