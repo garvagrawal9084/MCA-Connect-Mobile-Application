@@ -112,7 +112,7 @@ export const AlumniCommunityModal: React.FC<AlumniCommunityModalProps> = ({
 
                 {/* What's Coming Section */}
                 <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-                  What's in the works
+                  What&apos;s in the works
                 </Text>
 
                 <View className="space-y-2.5 mb-5">
