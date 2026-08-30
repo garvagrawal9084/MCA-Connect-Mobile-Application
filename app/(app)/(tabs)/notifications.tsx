@@ -53,8 +53,10 @@ export default function NotificationsScreen() {
   }, [fetchNotifications]);
 
   const handleNotificationPress = async (item: NotificationItem) => {
-    if (!item.read) {
-      markAsRead(item._id);
+    const isRead = Boolean(item.read || item.isRead);
+    const itemId = item._id || item.id;
+    if (!isRead && itemId) {
+      markAsRead(itemId);
     }
 
     if (item.metadata?.jobId) {
@@ -68,14 +70,15 @@ export default function NotificationsScreen() {
   };
 
   const handleMarkAllRead = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     markAllAsRead();
   };
 
   const filteredList = notifications.filter((item) => {
-    if (filterCategory === "unread") return !item.read;
+    const isRead = Boolean(item.read || item.isRead);
+    if (filterCategory === "unread") return !isRead;
     if (filterCategory === "placement") {
-      return item.type === "NEW_PLACEMENT_NOTICE" || item.type.includes("PLACEMENT");
+      return item.type === "NEW_PLACEMENT_NOTICE" || item.type?.includes("PLACEMENT");
     }
     return true;
   });

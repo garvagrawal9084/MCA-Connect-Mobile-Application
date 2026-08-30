@@ -20,6 +20,7 @@ import {
 interface ResultState {
   // State
   results: ResultItem[];
+  assessmentResults: ResultItem[];
   activeResult: ResultItem | null;
   activeAnalysis: ResultAnalysisResponse | null;
   activeAnswers: AttemptAnswersResponse | null;
@@ -31,14 +32,22 @@ interface ResultState {
 
   // Loading & Error States
   isLoadingResults: boolean;
+  isLoadingSingleResult: boolean;
+  isLoadingAssessmentResults: boolean;
   isLoadingAnalysis: boolean;
   isLoadingAnswers: boolean;
   isLoadingLeaderboard: boolean;
   isLoadingAnalytics: boolean;
+  isComputingResult: boolean;
+  isPublishingResult: boolean;
   error: string | null;
 
   // Actions
   fetchMyResults: (force?: boolean) => Promise<void>;
+  fetchResultById: (id: string) => Promise<ResultItem | null>;
+  fetchAssessmentResults: (assessmentId: string) => Promise<ResultItem[]>;
+  computeResult: (attemptId: string) => Promise<ResultItem | null>;
+  publishResult: (id: string) => Promise<ResultItem | null>;
   fetchResultAnalysis: (resultId: string) => Promise<ResultAnalysisResponse | null>;
   fetchAttemptAnswers: (attemptId: string) => Promise<AttemptAnswersResponse | null>;
   fetchAssessmentLeaderboard: (
@@ -49,10 +58,12 @@ interface ResultState {
   fetchPerformanceAnalytics: () => Promise<void>;
   clearActiveAnalysis: () => void;
   clearActiveAnswers: () => void;
+  clearActiveResult: () => void;
 }
 
 export const useResultStore = create<ResultState>((set, get) => ({
   results: [],
+  assessmentResults: [],
   activeResult: null,
   activeAnalysis: null,
   activeAnswers: null,
@@ -63,10 +74,14 @@ export const useResultStore = create<ResultState>((set, get) => ({
   aiRecommendation: null,
 
   isLoadingResults: false,
+  isLoadingSingleResult: false,
+  isLoadingAssessmentResults: false,
   isLoadingAnalysis: false,
   isLoadingAnswers: false,
   isLoadingLeaderboard: false,
   isLoadingAnalytics: false,
+  isComputingResult: false,
+  isPublishingResult: false,
   error: null,
 
   fetchMyResults: async (force = false) => {
@@ -79,7 +94,27 @@ export const useResultStore = create<ResultState>((set, get) => ({
 
     try {
       const response = await resultsApi.getMyResults();
-      const rawList = response.data?.results || [];
+      const dataPayload = response.data as unknown;
+      let rawList: ResultItem[] = [];
+      if (Array.isArray(dataPayload)) {
+        rawList = dataPayload as ResultItem[];
+      } else if (
+        dataPayload &&
+        typeof dataPayload === "object" &&
+        "results" in dataPayload &&
+        Array.isArray((dataPayload as { results: unknown[] }).results)
+      ) {
+        rawList = (dataPayload as { results: ResultItem[] }).results;
+      } else if (
+        dataPayload &&
+        typeof dataPayload === "object" &&
+        "data" in dataPayload &&
+        (dataPayload as { data: unknown }).data &&
+        typeof (dataPayload as { data: { results?: unknown } }).data === "object" &&
+        Array.isArray((dataPayload as { data: { results?: unknown[] } }).data.results)
+      ) {
+        rawList = (dataPayload as { data: { results: ResultItem[] } }).data.results;
+      }
 
       set({
         results: rawList,
@@ -93,6 +128,111 @@ export const useResultStore = create<ResultState>((set, get) => ({
         error: errMsg,
         isLoadingResults: false,
       });
+    }
+  },
+
+  fetchResultById: async (id: string) => {
+    set({ isLoadingSingleResult: true, error: null });
+    logger.info("RESULT_STORE", `Fetching result by ID: ${id}`);
+
+    try {
+      const response = await resultsApi.getResult(id);
+      const dataPayload = response.data as unknown;
+      let res: ResultItem | null = null;
+      if (
+        dataPayload &&
+        typeof dataPayload === "object" &&
+        "result" in dataPayload
+      ) {
+        res = (dataPayload as { result: ResultItem }).result;
+      } else if (
+        dataPayload &&
+        typeof dataPayload === "object" &&
+        "_id" in dataPayload
+      ) {
+        res = dataPayload as ResultItem;
+      }
+
+      set({
+        activeResult: res,
+        isLoadingSingleResult: false,
+      });
+      return res;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to fetch result";
+      logger.error("RESULT_STORE", `Failed to fetch result by ID: ${id}`, err);
+      set({ error: errMsg, isLoadingSingleResult: false });
+      return null;
+    }
+  },
+
+  fetchAssessmentResults: async (assessmentId: string) => {
+    set({ isLoadingAssessmentResults: true, error: null });
+    logger.info("RESULT_STORE", `Fetching results for assessment: ${assessmentId}`);
+
+    try {
+      const response = await resultsApi.getAssessmentResults(assessmentId);
+      const list = response.data?.results || [];
+      set({
+        assessmentResults: list,
+        isLoadingAssessmentResults: false,
+      });
+      return list;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to fetch assessment results";
+      logger.warn("RESULT_STORE", `Failed to load assessment results for ${assessmentId}`, err);
+      set({ error: errMsg, isLoadingAssessmentResults: false });
+      return [];
+    }
+  },
+
+  computeResult: async (attemptId: string) => {
+    set({ isComputingResult: true, error: null });
+    logger.info("RESULT_STORE", `Triggering computeResult for attempt: ${attemptId}`);
+
+    try {
+      const response = await resultsApi.computeResult(attemptId);
+      const computed = response.data?.result || null;
+      if (computed) {
+        // Refresh or update result in current list
+        set((state) => ({
+          results: [computed, ...state.results.filter((r) => r._id !== computed._id)],
+          isComputingResult: false,
+        }));
+      } else {
+        set({ isComputingResult: false });
+      }
+      return computed;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to compute result";
+      logger.error("RESULT_STORE", `Compute result failed for attempt ${attemptId}`, err);
+      set({ error: errMsg, isComputingResult: false });
+      return null;
+    }
+  },
+
+  publishResult: async (id: string) => {
+    set({ isPublishingResult: true, error: null });
+    logger.info("RESULT_STORE", `Triggering publishResult for ID: ${id}`);
+
+    try {
+      const response = await resultsApi.publishResult(id);
+      const published = response.data?.result || null;
+      if (published) {
+        set((state) => ({
+          results: state.results.map((r) => (r._id === id ? { ...r, isPublished: true, ...published } : r)),
+          activeResult: state.activeResult?._id === id ? { ...state.activeResult, isPublished: true, ...published } : state.activeResult,
+          isPublishingResult: false,
+        }));
+      } else {
+        set({ isPublishingResult: false });
+      }
+      return published;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to publish result";
+      logger.error("RESULT_STORE", `Publish result failed for ID ${id}`, err);
+      set({ error: errMsg, isPublishingResult: false });
+      return null;
     }
   },
 
@@ -209,4 +349,6 @@ export const useResultStore = create<ResultState>((set, get) => ({
 
   clearActiveAnalysis: () => set({ activeAnalysis: null }),
   clearActiveAnswers: () => set({ activeAnswers: null }),
+  clearActiveResult: () => set({ activeResult: null }),
 }));
+

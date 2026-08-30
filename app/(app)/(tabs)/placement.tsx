@@ -46,6 +46,7 @@ const PLACEMENT_FEATURES: PlacementFeatureItem[] = [
     color: "#D97706",
     bgColor: "bg-amber-50 dark:bg-amber-950/60",
     borderColor: "border-amber-200/80 dark:border-amber-800/80",
+    route: "/(app)/placement/tests",
   },
   {
     id: "leaderboard",

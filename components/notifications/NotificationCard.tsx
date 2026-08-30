@@ -21,9 +21,10 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   delay = 0,
   onPress,
 }) => {
-  const isPlacement = item.type === "NEW_PLACEMENT_NOTICE" || item.type.includes("PLACEMENT");
+  const isPlacement = item.type === "NEW_PLACEMENT_NOTICE" || item.type?.includes("PLACEMENT");
   const isApplication = item.type === "APPLICATION_UPDATE";
   const isReminder = item.type === "JOB_DEADLINE_REMINDER";
+  const isRead = Boolean(item.read || item.isRead);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -57,7 +58,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
         onPress={handlePress}
         activeOpacity={0.85}
         className={`p-4 rounded-2xl border ${
-          item.read
+          isRead
             ? "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800"
             : "bg-rose-50/40 dark:bg-slate-900/90 border-rose-200/90 dark:border-rose-900/60 shadow-xs"
         }`}
@@ -146,7 +147,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
           </View>
 
           {/* Unread indicator dot */}
-          {!item.read && (
+          {!isRead && (
             <View className="w-2 h-2 rounded-full bg-[#8B0000] ml-1.5 mt-1" />
           )}
         </View>

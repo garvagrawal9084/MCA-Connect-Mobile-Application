@@ -120,3 +120,89 @@ export function usePerformanceAnalytics() {
     refresh,
   };
 }
+
+/**
+ * Hook to retrieve a single result by ID
+ */
+export function useResult(resultId?: string) {
+  const activeResult = useResultStore((state) => state.activeResult);
+  const isLoading = useResultStore((state) => state.isLoadingSingleResult);
+  const error = useResultStore((state) => state.error);
+  const fetchResultById = useResultStore((state) => state.fetchResultById);
+  const clearActiveResult = useResultStore((state) => state.clearActiveResult);
+
+  useEffect(() => {
+    if (resultId) {
+      fetchResultById(resultId);
+    }
+    return () => {
+      clearActiveResult();
+    };
+  }, [resultId, fetchResultById, clearActiveResult]);
+
+  const refresh = useCallback(() => {
+    if (resultId) {
+      return fetchResultById(resultId);
+    }
+    return Promise.resolve(null);
+  }, [resultId, fetchResultById]);
+
+  return {
+    result: activeResult,
+    isLoading,
+    error,
+    refresh,
+  };
+}
+
+/**
+ * Hook to retrieve results for a specific assessment
+ */
+export function useAssessmentResults(assessmentId?: string) {
+  const assessmentResults = useResultStore((state) => state.assessmentResults);
+  const isLoading = useResultStore((state) => state.isLoadingAssessmentResults);
+  const error = useResultStore((state) => state.error);
+  const fetchAssessmentResults = useResultStore(
+    (state) => state.fetchAssessmentResults
+  );
+
+  useEffect(() => {
+    if (assessmentId) {
+      fetchAssessmentResults(assessmentId);
+    }
+  }, [assessmentId, fetchAssessmentResults]);
+
+  const refresh = useCallback(() => {
+    if (assessmentId) {
+      return fetchAssessmentResults(assessmentId);
+    }
+    return Promise.resolve([]);
+  }, [assessmentId, fetchAssessmentResults]);
+
+  return {
+    results: assessmentResults,
+    isLoading,
+    error,
+    refresh,
+  };
+}
+
+/**
+ * Hook to trigger computeResult and publishResult actions
+ */
+export function useResultActions() {
+  const computeResult = useResultStore((state) => state.computeResult);
+  const publishResult = useResultStore((state) => state.publishResult);
+  const isComputing = useResultStore((state) => state.isComputingResult);
+  const isPublishing = useResultStore((state) => state.isPublishingResult);
+  const error = useResultStore((state) => state.error);
+
+  return {
+    computeResult,
+    publishResult,
+    isComputing,
+    isPublishing,
+    error,
+  };
+}
+

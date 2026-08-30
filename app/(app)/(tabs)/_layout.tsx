@@ -63,7 +63,7 @@ export default function TabsLayout() {
         name="notifications"
         options={{
           title: "Notifications",
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarBadgeStyle: {
             backgroundColor: "#8B0000",
             fontSize: 10,

@@ -178,82 +178,31 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
     setLoadingAnswersId(attemptId);
     logger.info("RESULTS_UI", `Opening answers review for attempt: ${attemptId}`);
 
-    const res = await fetchAttemptAnswers(attemptId);
-    setLoadingAnswersId(null);
-
-    if (res) {
-      setActiveAnswersModal(res);
-    } else {
+    try {
+      const res = await fetchAttemptAnswers(attemptId);
+      if (res && Array.isArray(res.answers) && res.answers.length > 0) {
+        setActiveAnswersModal(res);
+      } else {
+        setActiveAnswersModal({
+          attempt: {
+            _id: attemptId,
+            status: "evaluated",
+            assessment: { name: testTitle || "Assessment Review" },
+          },
+          answers: [],
+        });
+      }
+    } catch {
       setActiveAnswersModal({
         attempt: {
           _id: attemptId,
           status: "evaluated",
-          assessment: { name: testTitle || "SCIS Assessment" },
+          assessment: { name: testTitle || "Assessment Review" },
         },
-        answers: [
-          {
-            _id: "ans-1",
-            question: {
-              _id: "q-1",
-              title: "Time Complexity of Search in Balanced AVL Tree",
-              type: "mcq",
-              options: [
-                { text: "O(1)" },
-                { text: "O(log n)", isCorrect: true },
-                { text: "O(n)" },
-                { text: "O(n log n)" },
-              ],
-              correctOption: 1,
-              marks: 4,
-              explanation: "In a balanced AVL tree, height is strictly bounded by 1.44 log n, providing guaranteed O(log n) lookups.",
-            },
-            selectedOption: 1,
-            isCorrect: true,
-            marksObtained: 4,
-          },
-          {
-            _id: "ans-2",
-            question: {
-              _id: "q-2",
-              title: "Implement Least Recently Used (LRU) Cache",
-              type: "coding",
-              marks: 20,
-              explanation: "Using a Doubly Linked List with Hash Map gives O(1) get and put operations.",
-            },
-            isCorrect: true,
-            marksObtained: 20,
-            codingResult: {
-              status: "Accepted",
-              passedCount: 15,
-              totalCount: 15,
-              runtime: 42,
-              memory: 18.4,
-              language: "TypeScript / C++",
-              code: "class LRUCache {\n  // Optimized Doubly Linked List\n}",
-            },
-          },
-          {
-            _id: "ans-3",
-            question: {
-              _id: "q-3",
-              title: "Deadlock Prevention Condition in Operating Systems",
-              type: "mcq",
-              options: [
-                { text: "Allowing Circular Wait" },
-                { text: "Imposing total ordering on resource allocation", isCorrect: true },
-                { text: "Allowing Hold and Wait without preemption" },
-                { text: "Infinite time quantum" },
-              ],
-              correctOption: 1,
-              marks: 4,
-              explanation: "Ordering resources globally prevents circular wait by requiring processes to request resources in an increasing order.",
-            },
-            selectedOption: 1,
-            isCorrect: true,
-            marksObtained: 4,
-          },
-        ],
+        answers: [],
       });
+    } finally {
+      setLoadingAnswersId(null);
     }
   };
 
@@ -814,7 +763,7 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                       <View>
                         <Text className="text-[10px] font-semibold text-slate-400">ACCURACY</Text>
                         <Text className="text-base font-black text-emerald-600">
-                          {item.accuracy ? `${item.accuracy}%` : `${pct}%`}
+                          {item.accuracy ? `${Number(item.accuracy).toFixed(1)}%` : `${pct.toFixed(1)}%`}
                         </Text>
                       </View>
                       <View>
@@ -868,94 +817,24 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                 );
               })
             ) : (
-              MOCK_TESTS.map((test) => (
-                <View
-                  key={test.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3"
-                >
-                  <View className="flex-row justify-between items-start mb-2">
-                    <View className="flex-1 mr-2">
-                      <Text className="text-sm font-bold text-slate-900 dark:text-white">
-                        {test.title}
-                      </Text>
-                      <Text className="text-[11px] text-slate-400 mt-0.5">
-                        {test.companyOrTopic}
-                      </Text>
-                    </View>
-                    <View
-                      className={`px-2 py-0.5 rounded-full ${
-                        test.status === "Completed"
-                          ? "bg-emerald-50 border border-emerald-200"
-                          : "bg-blue-50 border border-blue-200"
-                      }`}
-                    >
-                      <Text
-                        className={`text-[10px] font-bold ${
-                          test.status === "Completed"
-                            ? "text-emerald-700"
-                            : "text-blue-700"
-                        }`}
-                      >
-                        {test.status}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {test.status === "Completed" ? (
-                    <View>
-                      <View className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 mt-1 flex-row justify-between items-center">
-                        <View>
-                          <Text className="text-[10px] font-semibold text-slate-400">SCORE</Text>
-                          <Text className="text-base font-black text-slate-900 dark:text-white">
-                            {test.score} / {test.maxScore}
-                          </Text>
-                        </View>
-                        <View>
-                          <Text className="text-[10px] font-semibold text-slate-400">PERCENTILE</Text>
-                          <Text className="text-base font-black text-emerald-600">
-                            {test.percentile}%
-                          </Text>
-                        </View>
-                        <View>
-                          <Text className="text-[10px] font-semibold text-slate-400">STATUS</Text>
-                          <Text className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                            Verified
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View className="flex-row items-center gap-2 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <TouchableOpacity
-                          onPress={() => handleOpenAnalysis(test.id, test.title)}
-                          className="flex-1 bg-[#8B0000] py-2 rounded-lg items-center flex-row justify-center"
-                        >
-                          <Ionicons name="analytics-outline" size={13} color="#FFFFFF" />
-                          <Text className="text-xs font-bold text-white ml-1">Scorecard & Mastery</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleOpenAnswers(`att-${test.id}`, test.title)}
-                          className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 py-2 rounded-lg items-center flex-row justify-center"
-                        >
-                          <Ionicons name="checkbox-outline" size={13} color="#475569" />
-                          <Text className="text-xs font-bold text-slate-700 dark:text-slate-200 ml-1">Answers</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ) : (
-                    <View className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex-row justify-between items-center">
-                      <Text className="text-xs text-slate-500">Scheduled: {test.date}</Text>
-                      <TouchableOpacity
-                        onPress={() =>
-                          handleActionToast(`Registered for mock test on ${test.date}`)
-                        }
-                        className="bg-[#8B0000] px-3 py-1.5 rounded-lg"
-                      >
-                        <Text className="text-xs font-bold text-white">Set Reminder</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+              <View className="py-12 px-6 items-center justify-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl">
+                <View className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-950/60 items-center justify-center mb-2.5">
+                  <Ionicons name="document-text-outline" size={24} color="#8B0000" />
                 </View>
-              ))
+                <Text className="text-sm font-bold text-slate-900 dark:text-white text-center">
+                  No Assessment Results Yet
+                </Text>
+                <Text className="text-xs text-slate-400 text-center mt-1 mb-3">
+                  Complete an assessment to view your scores, percentiles, and reviews here.
+                </Text>
+                <TouchableOpacity
+                  onPress={refreshResults}
+                  className="bg-[#8B0000] px-4 py-2 rounded-xl flex-row items-center"
+                >
+                  <Ionicons name="refresh" size={13} color="#FFFFFF" />
+                  <Text className="text-xs font-bold text-white ml-1.5">Refresh Results</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
@@ -1679,7 +1558,8 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
             </View>
 
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-              {activeAnswersModal?.answers?.map((ans, index) => {
+              {activeAnswersModal?.answers && activeAnswersModal.answers.length > 0 ? (
+              activeAnswersModal.answers.map((ans, index) => {
                 const q = ans.question;
                 const isCorrect = ans.isCorrect !== false;
 
@@ -1792,10 +1672,23 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                     )}
                   </View>
                 );
-              })}
-            </ScrollView>
-          </View>
-        </Modal>
+              })
+            ) : (
+              <View className="py-20 px-6 items-center justify-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl mt-4">
+                <View className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 items-center justify-center mb-3">
+                  <Ionicons name="document-text-outline" size={28} color="#64748B" />
+                </View>
+                <Text className="text-base font-bold text-slate-900 dark:text-white text-center">
+                  No Review Found
+                </Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1 leading-5">
+                  Question-by-question review is not available for this assessment attempt.
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
       </View>
     </Modal>
   );

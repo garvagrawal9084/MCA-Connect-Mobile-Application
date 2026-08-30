@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   Alert,
@@ -14,6 +15,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { PlacementStudioCard } from "@/components/home/PlacementStudioCard";
 import { AlumniNetworkCard } from "@/components/home/AlumniNetworkCard";
+import { Avatar } from "@/components/ui/Avatar";
+import { images } from "@/constants/images";
 import { useAuthStore } from "@/features/auth/authStore";
 import { logger } from "@/utils/logger";
 
@@ -104,14 +107,28 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {/* Quick Sign Out / Profile Icon */}
-          <TouchableOpacity
-            onPress={handleSignOut}
-            className="w-9 h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 items-center justify-center shadow-xs"
-            activeOpacity={0.7}
-          >
-            <Ionicons name="log-out-outline" size={17} color="#64748B" />
-          </TouchableOpacity>
+          {/* Quick Profile Avatar & Sign Out */}
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => router.push("/(app)/(tabs)/profile")}
+              activeOpacity={0.7}
+              className="rounded-full border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden"
+            >
+              <Avatar
+                uri={user?.profileImage || user?.avatar || user?.avatarUrl}
+                name={user?.name || "Student"}
+                size={34}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSignOut}
+              className="w-9 h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 items-center justify-center shadow-xs"
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out-outline" size={17} color="#64748B" />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Personalized Welcome Header */}
@@ -157,8 +174,12 @@ export default function HomeScreen() {
           className="items-center mt-2 mb-2"
         >
           <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-3.5 py-1.5 rounded-full shadow-xs">
-            <Ionicons name="school" size={13} color="#8B0000" />
-            <Text className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 ml-1.5">
+            <Image
+              source={images.logo}
+              className="w-4 h-4 mr-1.5"
+              resizeMode="contain"
+            />
+            <Text className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
               School of Computer and Information Sciences · UoH
             </Text>
           </View>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +21,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { images } from "@/constants/images";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -259,9 +261,13 @@ export default function LoginScreen() {
                 >
                   <Animated.View
                     style={animatedBadgeStyle}
-                    className="w-16 h-16 bg-red-800 dark:bg-red-900 rounded-2xl items-center justify-center shadow-md shadow-red-900/30 mb-3"
+                    className="w-18 h-18 bg-white dark:bg-slate-800 rounded-2xl items-center justify-center shadow-md shadow-slate-200 dark:shadow-none border border-slate-200/80 dark:border-slate-700 p-2 mb-3"
                   >
-                    <Ionicons name="school" size={32} color="#FFFFFF" />
+                    <Image
+                      source={images.logo}
+                      className="w-14 h-14"
+                      resizeMode="contain"
+                    />
                   </Animated.View>
                 </TouchableOpacity>
 

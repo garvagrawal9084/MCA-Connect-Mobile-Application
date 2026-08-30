@@ -5,6 +5,7 @@ export default function PlacementLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="center" />
+      <Stack.Screen name="tests" />
     </Stack>
   );
 }

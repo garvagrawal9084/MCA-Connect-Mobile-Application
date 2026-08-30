@@ -35,6 +35,63 @@ export const resultsApi = {
   },
 
   /**
+   * Fetch a specific result by Result ID
+   * Endpoint: GET /api/results/:id
+   */
+  async getResult(id: string): Promise<ApiResponse<{ result: ResultItem }>> {
+    logger.info("RESULTS_API", `Fetching single result by ID: ${id}`);
+    return apiClient.get<{ result: ResultItem }>(
+      `${API_CONFIG.ENDPOINTS.RESULTS.BASE}/${id}`
+    );
+  },
+
+  /**
+   * Fetch all results for a specific assessment
+   * Endpoint: GET /api/results/:assessmentId/results (or /api/assessments/:assessmentId/results)
+   */
+  async getAssessmentResults(
+    assessmentId: string
+  ): Promise<ApiResponse<{ results: ResultItem[] }>> {
+    logger.info("RESULTS_API", `Fetching assessment results for: ${assessmentId}`);
+    try {
+      return await apiClient.get<{ results: ResultItem[] }>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.BASE}/${assessmentId}/results`
+      );
+    } catch {
+      // Fallback in case endpoint is mounted under /api/assessments/:assessmentId/results
+      return apiClient.get<{ results: ResultItem[] }>(
+        `/api/assessments/${assessmentId}/results`
+      );
+    }
+  },
+
+  /**
+   * Compute result for an assessment attempt (Admin / Faculty / Owner)
+   * Endpoint: POST /api/results/compute/:attemptId
+   */
+  async computeResult(
+    attemptId: string
+  ): Promise<ApiResponse<{ result: ResultItem; message?: string }>> {
+    logger.info("RESULTS_API", `Computing result for attempt: ${attemptId}`);
+    return apiClient.post<{ result: ResultItem; message?: string }>(
+      `${API_CONFIG.ENDPOINTS.RESULTS.COMPUTE}/${attemptId}`
+    );
+  },
+
+  /**
+   * Publish a result by Result ID (Admin / Faculty / Owner)
+   * Endpoint: POST /api/results/:id/publish
+   */
+  async publishResult(
+    id: string
+  ): Promise<ApiResponse<{ result: ResultItem; message?: string }>> {
+    logger.info("RESULTS_API", `Publishing result ID: ${id}`);
+    return apiClient.post<{ result: ResultItem; message?: string }>(
+      `${API_CONFIG.ENDPOINTS.RESULTS.PUBLISH}/${id}/publish`
+    );
+  },
+
+  /**
    * Fetch student's highest score result for a specific assessment
    * Endpoint: GET /api/results/my-result/:assessmentId
    */
@@ -81,9 +138,21 @@ export const resultsApi = {
     attemptId: string
   ): Promise<ApiResponse<AttemptAnswersResponse>> {
     logger.info("RESULTS_API", `Fetching attempt answers review for: ${attemptId}`);
-    return apiClient.get<AttemptAnswersResponse>(
-      `${API_CONFIG.ENDPOINTS.RESULTS.ATTEMPT_ANSWERS}/${attemptId}/answers`
-    );
+    try {
+      return await apiClient.get<AttemptAnswersResponse>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.ATTEMPT_ANSWERS}/${attemptId}/answers`
+      );
+    } catch {
+      try {
+        return await apiClient.get<AttemptAnswersResponse>(
+          `/api/assessments/attempts/${attemptId}/answers`
+        );
+      } catch {
+        return apiClient.get<AttemptAnswersResponse>(
+          `/api/assessments/results/${attemptId}/answers`
+        );
+      }
+    }
   },
 
   /**

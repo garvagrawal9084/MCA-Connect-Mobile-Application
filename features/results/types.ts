@@ -20,6 +20,7 @@ export interface AttemptSummary {
 }
 
 export interface SectionAnalysisItem {
+  section?: string;
   sectionName?: string;
   topic?: string;
   accuracy: number;
@@ -28,21 +29,44 @@ export interface SectionAnalysisItem {
   total?: number;
   totalMarks?: number;
   percentage: number;
+  totalQuestions?: number;
+  answered?: number;
+  correct?: number;
+  wrong?: number;
+  skipped?: number;
+  timeSpent?: number;
+  averageTime?: number;
+  _id?: string;
 }
 
 export interface ResultItem {
   _id: string;
   user?: string | { _id: string; name: string; email: string; role: string };
   assessment: AssessmentSummary;
-  attempt?: AttemptSummary;
+  attempt?: AttemptSummary | null;
   obtainedMarks: number;
   totalMarks: number;
-  accuracy?: number;
+  percentage?: number;
+  percentile?: number;
   rank?: number;
-  totalAttempts?: number;
-  sectionAnalysis?: SectionAnalysisItem[];
+  accuracy?: number;
+  completionStatus?: string;
   totalQuestions?: number;
+  answered?: number;
+  correct?: number;
+  wrong?: number;
+  skipped?: number;
+  negativeMarks?: number;
   totalTimeSpent?: number; // in seconds
+  sectionAnalysis?: SectionAnalysisItem[];
+  weakAreas?: string[];
+  strongAreas?: string[];
+  attemptNumber?: number;
+  previousBestObtainedMarks?: number | null;
+  improvementFromPrevious?: number | null;
+  bestAttempt?: boolean;
+  previousBestAttempt?: unknown;
+  highestObtainedMarks?: number;
   isPublished?: boolean;
   publishedAt?: string;
   isPassed?: boolean;
@@ -50,10 +74,11 @@ export interface ResultItem {
   correctCount?: number;
   wrongCount?: number;
   skippedCount?: number;
-  percentile?: number;
   topPercentile?: number;
+  totalAttempts?: number;
   createdAt: string;
   updatedAt?: string;
+  __v?: number;
 }
 
 export interface TrendItem {
@@ -185,3 +210,27 @@ export interface StudentImprovementResponse {
   trend?: "improving" | "declining" | "stable";
   history?: Array<{ assessment: string; score: number; percentage: number }>;
 }
+
+export interface SingleResultResponse {
+  result: ResultItem;
+  message?: string;
+}
+
+export interface ComputeResultResponse {
+  success?: boolean;
+  result: ResultItem;
+  message?: string;
+}
+
+export interface PublishResultResponse {
+  success?: boolean;
+  result: ResultItem;
+  message?: string;
+}
+
+export interface AssessmentResultsResponse {
+  results: ResultItem[];
+  assessment?: AssessmentSummary;
+  totalCount?: number;
+}
+
