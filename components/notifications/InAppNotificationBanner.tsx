@@ -97,7 +97,17 @@ export function InAppNotificationBanner() {
 
   if (!activeBanner) return null;
 
-  const isJob = activeBanner.type === "JOB_POSTED" || Boolean(activeBanner.jobId);
+  const isReminder =
+    activeBanner.type === "APPLICATION_DEADLINE" ||
+    activeBanner.type === "JOB_DEADLINE_REMINDER" ||
+    activeBanner.type?.includes("REMINDER") ||
+    activeBanner.type?.includes("DEADLINE");
+
+  const isJob =
+    !isReminder &&
+    (activeBanner.type === "JOB_POSTED" ||
+      activeBanner.type === "NEW_PLACEMENT_NOTICE" ||
+      Boolean(activeBanner.jobId));
 
   return (
     <Animated.View
@@ -108,7 +118,7 @@ export function InAppNotificationBanner() {
           left: 14,
           right: 14,
           zIndex: 9999,
-          shadowColor: "#8B0000",
+          shadowColor: isReminder ? "#7C3AED" : "#8B0000",
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.18,
           shadowRadius: 16,
@@ -119,20 +129,40 @@ export function InAppNotificationBanner() {
     >
       <Pressable
         onPress={() => handleBannerPress(activeBanner)}
-        className="bg-white dark:bg-slate-900 border-2 border-[#8B0000]/30 dark:border-rose-900/60 rounded-3xl p-3.5"
+        className={`bg-white dark:bg-slate-900 border-2 rounded-3xl p-3.5 ${
+          isReminder
+            ? "border-purple-600/40 dark:border-purple-800/60"
+            : "border-[#8B0000]/30 dark:border-rose-900/60"
+        }`}
       >
         {/* Top Header Row */}
         <View className="flex-row items-center justify-between mb-2">
           <View className="flex-row items-center">
-            <View className="w-6 h-6 rounded-full bg-rose-50 dark:bg-rose-950/80 items-center justify-center border border-rose-200 dark:border-rose-800 mr-2">
+            <View
+              className={`w-6 h-6 rounded-full items-center justify-center border mr-2 ${
+                isReminder
+                  ? "bg-purple-50 dark:bg-purple-950/80 border-purple-200 dark:border-purple-800"
+                  : "bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-800"
+              }`}
+            >
               <Ionicons
-                name={isJob ? "briefcase" : "notifications"}
+                name={isReminder ? "time" : isJob ? "briefcase" : "notifications"}
                 size={12}
-                color="#8B0000"
+                color={isReminder ? "#7C3AED" : "#8B0000"}
               />
             </View>
-            <Text className="text-[11px] font-black text-[#8B0000] dark:text-red-400 tracking-wider uppercase">
-              {isJob ? "NEW PLACEMENT DRIVE" : activeBanner.subTitle || "SCIS CONNECT ALERT"}
+            <Text
+              className={`text-[11px] font-black tracking-wider uppercase ${
+                isReminder
+                  ? "text-purple-700 dark:text-purple-400"
+                  : "text-[#8B0000] dark:text-red-400"
+              }`}
+            >
+              {isReminder
+                ? "DEADLINE REMINDER"
+                : isJob
+                ? "NEW PLACEMENT DRIVE"
+                : activeBanner.subTitle || "SCIS CONNECT ALERT"}
             </Text>
             <View className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-2" />
             <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 ml-1">
@@ -173,10 +203,12 @@ export function InAppNotificationBanner() {
           {/* Action CTA Pill */}
           <TouchableOpacity
             onPress={() => handleBannerPress(activeBanner)}
-            className="bg-[#8B0000] px-3.5 py-2 rounded-xl flex-row items-center shadow-xs"
+            className={`px-3.5 py-2 rounded-xl flex-row items-center shadow-xs ${
+              isReminder ? "bg-purple-700" : "bg-[#8B0000]"
+            }`}
           >
             <Text className="text-xs font-bold text-white">
-              {isJob ? "View Job" : "Open"}
+              {isJob || isReminder || activeBanner.jobId ? "View Job" : "Open"}
             </Text>
             <Ionicons name="arrow-forward" size={12} color="#ffffff" style={{ marginLeft: 3 }} />
           </TouchableOpacity>

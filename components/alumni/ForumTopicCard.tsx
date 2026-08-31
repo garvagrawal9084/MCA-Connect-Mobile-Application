@@ -8,6 +8,7 @@ interface ForumTopicCardProps {
   topic: ForumTopic;
   onLike: () => void;
   onPress?: () => void;
+  onAuthorPress?: () => void;
 }
 
 const getProfileImage = (profileImage: unknown): string | null => {
@@ -19,10 +20,17 @@ const getProfileImage = (profileImage: unknown): string | null => {
   return null;
 };
 
-export const ForumTopicCard: React.FC<ForumTopicCardProps> = ({ topic, onLike, onPress }) => {
+export const ForumTopicCard: React.FC<ForumTopicCardProps> = ({ topic, onLike, onPress, onAuthorPress }) => {
   const handleLike = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onLike();
+  };
+
+  const handleAuthorPress = () => {
+    if (onAuthorPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onAuthorPress();
+    }
   };
 
   const authorInitials = topic.author?.name
@@ -56,19 +64,27 @@ export const ForumTopicCard: React.FC<ForumTopicCardProps> = ({ topic, onLike, o
       className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 mb-3 shadow-xs"
     >
       <View className="flex-row items-center mb-3">
-        {photoUrl ? (
-          <Image source={{ uri: photoUrl }} className="w-10 h-10 rounded-full mr-3" />
-        ) : (
-          <View className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 items-center justify-center mr-3">
-            <Text className="text-xs font-bold text-red-700 dark:text-red-300">{authorInitials}</Text>
+        <TouchableOpacity
+          onPress={handleAuthorPress}
+          disabled={!onAuthorPress}
+          activeOpacity={onAuthorPress ? 0.7 : 1}
+          className="flex-row items-center flex-1 mr-2"
+        >
+          {photoUrl ? (
+            <Image source={{ uri: photoUrl }} className="w-10 h-10 rounded-full mr-3" />
+          ) : (
+            <View className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 items-center justify-center mr-3">
+              <Text className="text-xs font-bold text-red-700 dark:text-red-300">{authorInitials}</Text>
+            </View>
+          )}
+          <View className="flex-1">
+            <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={1}>
+              {topic.author?.name || "Anonymous"}
+            </Text>
+            <Text className="text-[11px] text-slate-400 dark:text-slate-500">{timeAgo}</Text>
           </View>
-        )}
-        <View className="flex-1">
-          <Text className="text-sm font-bold text-slate-900 dark:text-white">
-            {topic.author?.name || "Anonymous"}
-          </Text>
-          <Text className="text-[11px] text-slate-400 dark:text-slate-500">{timeAgo}</Text>
-        </View>
+        </TouchableOpacity>
+
         <View className="flex-row items-center bg-red-50 dark:bg-red-950/60 border border-red-200/80 dark:border-red-800/80 px-2 py-1 rounded-full">
           <Ionicons name="chatbubbles-outline" size={10} color="#8B0000" />
           <Text className="text-[10px] font-semibold text-red-800 dark:text-red-300 ml-1">

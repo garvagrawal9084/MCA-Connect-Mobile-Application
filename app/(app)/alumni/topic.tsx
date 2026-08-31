@@ -178,7 +178,20 @@ export default function TopicDetailScreen() {
         >
           {/* Topic Content */}
           <Animated.View entering={FadeInDown.duration(260).springify().damping(20)} className="px-5 pt-4 pb-3">
-            <View className="flex-row items-center mb-3">
+            <TouchableOpacity
+              onPress={() => {
+                if (topic.author) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push({
+                    pathname: "/(app)/alumni/profile",
+                    params: { data: JSON.stringify(topic.author) },
+                  } as never);
+                }
+              }}
+              activeOpacity={topic.author ? 0.7 : 1}
+              disabled={!topic.author}
+              className="flex-row items-center mb-3"
+            >
               {authorPhoto ? (
                 <Image source={{ uri: authorPhoto }} className="w-11 h-11 rounded-full mr-3" />
               ) : (
@@ -206,7 +219,7 @@ export default function TopicDetailScreen() {
                   <Text className="text-[10px] font-semibold text-amber-500 ml-1">Pinned</Text>
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
 
             <Text className="text-xl font-black text-slate-900 dark:text-white mb-2">{topic.title}</Text>
             <Text className="text-sm text-slate-700 dark:text-slate-300 leading-6">{topic.content}</Text>
@@ -278,7 +291,20 @@ export default function TopicDetailScreen() {
                     key={reply._id || index}
                     className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 mb-3"
                   >
-                    <View className="flex-row items-center mb-2">
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (reply.author) {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push({
+                            pathname: "/(app)/alumni/profile",
+                            params: { data: JSON.stringify(reply.author) },
+                          } as never);
+                        }
+                      }}
+                      activeOpacity={reply.author ? 0.7 : 1}
+                      disabled={!reply.author}
+                      className="flex-row items-center mb-2"
+                    >
                       {replyPhoto ? (
                         <Image source={{ uri: replyPhoto }} className="w-8 h-8 rounded-full mr-2.5" />
                       ) : (
@@ -296,7 +322,7 @@ export default function TopicDetailScreen() {
                           {timeAgo(reply.createdAt)}
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                     <Text className="text-sm text-slate-700 dark:text-slate-300 leading-5">
                       {reply.text}
                     </Text>

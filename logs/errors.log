@@ -119,3 +119,77 @@
     - Replaced actionable Download button with a verified credential badge and issue date display.
     - Verified TypeScript build: npx tsc --noEmit (0 errors).
     - Created docs/remove-certificate-download-button.md.
+
+  [2026-08-31 09:41:00.000] [INFO]  [NOTIFICATION_OPTIONS_AND_SETTINGS] Implemented comprehensive notification preferences, persistent state, Android 13+ permission flow, and diagnostics:
+    - Added NotificationPreferences interface and SecureStore persistence in services/storage.ts.
+    - Updated services/notifications/notificationEngine.ts to check master & category user preferences and properly route Android channel triggers.
+    - Added checkNotificationPermissions(), requestNotificationPermissionsWithPrompt() with deep-linking to device App Settings, and sendTestNotification() in services/notifications/notificationPermissions.ts.
+    - Extended features/notifications/store.ts with persistent preference actions and permission state.
+    - Built components/notifications/NotificationSettingsModal.tsx with live device permission status, category toggles, and live diagnostic notification dispatch.
+    - Integrated Notification Settings modal into app/(app)/(tabs)/notifications.tsx header and app/(app)/(tabs)/profile.tsx preferences card.
+  [2026-08-31 09:45:00.000] [INFO]  [NOTIFICATION_SETTINGS_UI] Cleaned and streamlined NotificationSettingsModal.tsx:
+    - Removed diagnostic test notification card and device notification status banner.
+    - Preserved master notification switch and granular channel toggles (Placement Jobs, Campus Announcements, Deadlines, and Assessment Results).
+    - Verified full TypeScript compilation: npx tsc --noEmit (0 errors).
+
+  [2026-08-31 10:34:00.000] [INFO]  [REALTIME_NOTIFICATIONS_FIX] Fixed new job and deadline reminder notification delivery and automatic Notification Center synchronization:
+    - Fixed JobWatcher baseline restoration in features/placement/jobWatcher.ts so previously stored IDs are preserved across restarts and new jobs are detected accurately.
+    - Updated services/notifications/notificationEngine.ts to map APPLICATION_DEADLINE to JOB_DEADLINE_REMINDER and optimistically update Zustand notifications state.
+    - Enhanced features/notifications/store.ts to retain recent optimistic local notifications during server fetch merges.
+    - Updated components/placement/PlacementJobDetailModal.tsx to dispatch APPLICATION_DEADLINE notifications when setting reminders and JOB_POSTED on broadcast.
+    - Updated app/_layout.tsx foreground listener and received notification handler to automatically refresh notifications store and unread counts in real-time.
+    - Replaced single mount useEffect with useFocusEffect in app/(app)/(tabs)/notifications.tsx to auto-refresh notifications upon tab focus.
+    - Updated components/notifications/NotificationCard.tsx and InAppNotificationBanner.tsx with complete styling and icons for deadline reminders and new jobs.
+    - Added auto-modal opening in app/(app)/placement/center.tsx when deep-linking from notifications.
+  [2026-08-31 10:38:00.000] [INFO]  [PROFILE_SCREEN_FIX] Enhanced profile data extraction and tab focus synchronization:
+    - Updated features/profile/api.ts and hooks.ts to defensively unpack user object from any response structure (response.data.user, response.data.student, or direct response.data).
+    - Integrated useFocusEffect in app/(app)/(tabs)/profile.tsx to automatically re-fetch and synchronize profile data on tab focus.
+    - Made program title resolution resilient to both string and object shapes (`profile.program.name` vs `profile.program`).
+    - Added defensive array guards for `skills`, `projects`, `resumes`, `leetcode_profiles`, and `sgpa` to prevent rendering exceptions.
+    - Updated Avatar.tsx to reset error state upon uri changes.
+  [2026-08-31 10:52:00.000] [INFO]  [SERVER_NOTIFICATION_WATCHER_FIX] Implemented real-time Server Notification Watcher for /send-notifications and reminders:
+    - Created services/notifications/notificationWatcher.ts with persistent SecureStore tracking of known server notification IDs.
+    - Added automatic detection of incoming server notifications from /api/notifications triggered by /api/placement/jobs/:id/send-notifications, scheduled reminders, and broadcasts.
+    - Integrated native system tray alert (vibration & sound on appropriate Android channel) + animated floating in-app banner for incoming server notifications.
+    - Updated app/_layout.tsx with baseline synchronization on startup, foreground resume sync, and 30-second periodic polling interval.
+    - Updated features/auth/authStore.ts to reset notification watcher on logout.
+    - Updated components/placement/PlacementJobDetailModal.tsx to pass { sendEmail: true, sendWeb: true } to sendJobNotifications.
+    - Verified with npx tsc --noEmit (0 errors).
+    - Created docs/realtime-notification-watcher-send-notifications-fix.md and learning/server-notification-watcher-architecture.md.
+  [2026-08-31 10:54:00.000] [INFO]  [NOTIFICATION_CHANNEL_FIX] Fixed channelId resolution in notificationWatcher.ts:
+    - Updated channel key lookups to use exact NOTIFICATION_CHANNELS keys (`APPLICATION_UPDATES`, `PLACEMENT_JOBS`, `ACADEMIC_RESULTS`, `CAMPUS_ANNOUNCEMENTS`, `GENERAL`).
+    - Added defensive fallbacks and per-item try/catch so alert dispatches never halt execution.
+    - Verified with npx tsc --noEmit (0 errors).
+  [2026-08-31 11:01:00.000] [INFO]  [REMINDER_ALERT_AND_SYNC_FIX] Fixed immediate reminder alert popping and store retention:
+    - Updated handleSetReminder in PlacementJobDetailModal.tsx to immediately fire confirmation alert & floating banner while simultaneously scheduling the future OS deadline alarm.
+    - Fixed fetchNotifications in store.ts to prevent deleting new local reminder notifications during server list merges.
+    - Enhanced notificationWatcher.ts to immediately inject newly discovered server items directly into Zustand state.
+  [2026-08-31 11:09:00.000] [INFO]  [ALUMNI_PROFILE_FIX] Resolved Alumni Network Profile hydration, route parameter normalization & card navigation:
+    - Updated app/(app)/alumni/profile.tsx to support direct route opening (params.id, params.userId, params.data, and no-param self fallback via useAuthStore / storageService).
+    - Added dual-source endpoint hydration: /api/auth/me for authenticated user and /api/profile/:id (with /api/users/:id fallback) for alumni peers.
+    - Implemented defensive response envelope unwrapping (raw.user, raw.profile, raw.student, raw.data) and preserved initial fallback profile on network failures.
+    - Added self vs peer profile distinction: rendering "Edit Profile" (navigating to /(app)/(tabs)/profile) and "Your Student Profile" badge when viewing own account.
+    - Connected live follow action to alumniApi.followUser(userId) (/api/follow/:userId/follow) with optimistic follower count adjustment and error rollback.
+    - Added pull-to-refresh (RefreshControl) to profile ScrollView.
+    - Fixed image avatar rendering in components/alumni/AlumniCard.tsx (removed duplicate initials view branch).
+    - Enabled full profile navigation in components/alumni/MentorCard.tsx and app/(app)/alumni/mentors.tsx.
+    - Added author profile navigation in components/alumni/PostCard.tsx, components/alumni/ForumTopicCard.tsx, app/(app)/alumni/community.tsx, app/(app)/alumni/topic.tsx, and app/(app)/alumni/followlist.tsx.
+    - Verified full TypeScript compilation: npx tsc --noEmit (0 errors).
+  [2026-08-31 11:15:00.000] [INFO]  [PROFILE_OVERFLOW_FIX] Fixed Academic Background, CGPA badge collision, and long text out-of-bounds rendering:
+    - Updated app/(app)/(tabs)/profile.tsx to use responsive flexbox layout (flex-1 leading-4 on degree titles + shrink-0 bounded CGPA badge pills) preventing right-side overflow.
+    - Deduplicated identical college & university names (e.g. University of Hyderabad).
+    - Added min-w-0, shrink-1, and bounded truncation to email addresses and contact rows.
+    - Updated app/(app)/alumni/profile.tsx EducationCard and InfoRow to wrap long institution and degree names cleanly.
+    - Updated components/alumni/AlumniCard.tsx to prevent long student names from pushing community status pills off-screen.
+    - Verified with npx tsc --noEmit (0 errors).
+    - Created docs/academic-background-overflow-fix.md and learning/30-responsive-flexbox-and-text-overflow-prevention.md.
+  [2026-08-31 12:21:00.000] [INFO]  [BACKGROUND_NOTIFICATION_TASK_IMPLEMENTED] Implemented Headless Background Notification Worker:
+    - Installed expo-background-fetch and expo-task-manager.
+    - Created services/notifications/backgroundNotificationTask.ts defining SCIS_BACKGROUND_NOTIFICATION_TASK.
+    - Configured background sync to run periodically on Android OS with stopOnTerminate: false and startOnBoot: true.
+    - Synchronized jobWatcher and notificationWatcher during background OS wakes to dispatch native system alerts when new jobs or notices arrive while app is closed.
+    - Registered task in app/_layout.tsx root component initialization.
+    - Verified with npx tsc --noEmit (0 errors).
+
+
+

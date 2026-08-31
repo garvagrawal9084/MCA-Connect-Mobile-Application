@@ -10,6 +10,7 @@ import { authApi } from "./api";
 import { storageService } from "@/services/storage";
 import { registerForPushNotificationsAsync } from "@/services/notifications/notificationPermissions";
 import { jobWatcher } from "@/features/placement/jobWatcher";
+import { notificationWatcher } from "@/services/notifications/notificationWatcher";
 import { logger } from "@/utils/logger";
 
 export interface AuthState {
@@ -189,6 +190,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
     storageService.clearSession();
     jobWatcher.reset();
+    notificationWatcher.reset();
     set({
       user: null,
       accessToken: null,

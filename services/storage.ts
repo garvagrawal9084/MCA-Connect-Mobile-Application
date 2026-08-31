@@ -25,12 +25,21 @@ export interface StoredCookie {
   options?: CookieOptions;
 }
 
+export interface NotificationPreferences {
+  masterNotificationsEnabled: boolean;
+  jobAlertsEnabled: boolean;
+  announcementsEnabled: boolean;
+  deadlineRemindersEnabled: boolean;
+  resultsPublishedEnabled: boolean;
+}
+
 const STORAGE_KEYS = {
   REMEMBER_ME: "scis_auth_remember_me",
   COOKIES: "scis_auth_cookies",
   ACCESS_TOKEN: "scis_auth_access_token",
   REFRESH_TOKEN: "scis_auth_refresh_token",
   USER: "scis_auth_user",
+  NOTIFICATION_PREFERENCES: "scis_notification_preferences",
 } as const;
 
 // Safe platform wrapper for SecureStore with web/local fallback
@@ -308,7 +317,22 @@ class StorageService {
 
     if (this.rememberMe) {
       if (user) {
-        safeSecureSet(STORAGE_KEYS.USER, JSON.stringify(user));
+        // Persist essential auth profile data under 2048 bytes limit
+        const compactUser: Partial<AuthUser> = {
+          id: user.id || user._id,
+          _id: user._id || user.id,
+          name: user.name,
+          email: user.email,
+          roll_no: user.roll_no,
+          role: user.role,
+          program: user.program,
+          avatar: user.avatar,
+          avatarUrl: user.avatarUrl,
+          isActive: user.isActive,
+          isEmailVerified: user.isEmailVerified,
+          batchYear: user.batchYear,
+        };
+        safeSecureSet(STORAGE_KEYS.USER, JSON.stringify(compactUser));
       } else {
         safeSecureDelete(STORAGE_KEYS.USER);
       }
@@ -399,6 +423,28 @@ class StorageService {
     this.rememberMe = false;
     this.clearPersistedSession();
     logger.info("STORAGE", "Full auth session cleared (memory + SecureStore)");
+  }
+
+  /**
+   * Notification Preferences Persistence
+   */
+  async getNotificationPreferences(): Promise<Partial<NotificationPreferences> | null> {
+    try {
+      const json = await safeSecureGet(STORAGE_KEYS.NOTIFICATION_PREFERENCES);
+      return json ? JSON.parse(json) : null;
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to load notification preferences", e);
+      return null;
+    }
+  }
+
+  async saveNotificationPreferences(prefs: Partial<NotificationPreferences>): Promise<void> {
+    try {
+      await safeSecureSet(STORAGE_KEYS.NOTIFICATION_PREFERENCES, JSON.stringify(prefs));
+      logger.debug("STORAGE", "Persisted notification preferences to storage");
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to save notification preferences", e);
+    }
   }
 }
 

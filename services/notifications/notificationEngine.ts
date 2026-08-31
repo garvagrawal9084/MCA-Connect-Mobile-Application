@@ -4,6 +4,7 @@
  * Android channels, deduplication, user preferences, and in-app synchronization.
  */
 
+import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { triggerRegistry } from "./triggerRegistry";
 import {
@@ -34,6 +35,7 @@ class NotificationEngine {
 
     try {
       await setupAndroidNotificationChannels();
+      await useNotificationsStore.getState().loadPreferences();
       await registerForPushNotificationsAsync();
       this.initialized = true;
       logger.info("NOTIFICATION_ENGINE", "Notification Engine initialized successfully");
@@ -71,7 +73,12 @@ class NotificationEngine {
 
       // 2. Check user notification preferences
       const preferences = useNotificationsStore.getState();
-      if (definition?.preferenceKey) {
+      if (preferences.masterNotificationsEnabled === false && !options?.force) {
+        logger.info("NOTIFICATION_ENGINE", `Trigger ${triggerType} suppressed: master notifications disabled`);
+        return null;
+      }
+
+      if (definition?.preferenceKey && !options?.force) {
         const prefKey = definition.preferenceKey as keyof typeof preferences;
         const isEnabled = preferences[prefKey];
         if (isEnabled === false) {
@@ -138,8 +145,8 @@ class NotificationEngine {
             seconds: options.delaySeconds,
             channelId: formatted.channelId,
           }
-        : formatted.channelId
-        ? { channelId: formatted.channelId }
+        : Platform.OS === "android" && formatted.channelId
+        ? ({ channelId: formatted.channelId } as Notifications.ChannelAwareTriggerInput)
         : null;
 
       const notificationId = await Notifications.scheduleNotificationAsync({
@@ -186,9 +193,15 @@ class NotificationEngine {
   private syncInAppStore(triggerType: string, formatted: FormattedNotification): void {
     try {
       const store = useNotificationsStore.getState();
+
+      let mappedType = triggerType;
+      if (triggerType === "JOB_POSTED") mappedType = "NEW_PLACEMENT_NOTICE";
+      else if (triggerType === "APPLICATION_DEADLINE") mappedType = "JOB_DEADLINE_REMINDER";
+      else if (triggerType === "APPLICATION_STATUS_UPDATE") mappedType = "APPLICATION_UPDATE";
+
       const rawItem = {
-        _id: `local-${Date.now()}`,
-        type: triggerType === "JOB_POSTED" ? "NEW_PLACEMENT_NOTICE" : triggerType,
+        _id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        type: mappedType,
         title: formatted.title,
         message: formatted.body,
         read: false,
@@ -198,10 +211,22 @@ class NotificationEngine {
       };
 
       const normalized = normalizeNotification(rawItem);
-      useNotificationsStore.setState((state) => ({
-        notifications: [normalized, ...state.notifications],
-        unreadCount: state.unreadCount + 1,
-      }));
+
+      // Prepend to notifications store optimistically with deduplication
+      useNotificationsStore.setState((state) => {
+        const exists = state.notifications.some(
+          (n) =>
+            n._id === rawItem._id ||
+            (n.type === mappedType && n.title === formatted.title && n.message === formatted.body)
+        );
+        if (exists) {
+          return state;
+        }
+        return {
+          notifications: [normalized, ...state.notifications],
+          unreadCount: state.unreadCount + 1,
+        };
+      });
 
       // Also display animated floating in-app notification banner
       store.showInAppBanner({
@@ -210,10 +235,20 @@ class NotificationEngine {
         title: formatted.title,
         message: formatted.body,
         subTitle: formatted.subTitle,
-        companyName: typeof formatted.data?.companyName === "string" ? formatted.data.companyName : undefined,
-        jobId: typeof formatted.data?.jobId === "string" ? formatted.data.jobId : undefined,
+        companyName:
+          typeof formatted.data?.companyName === "string"
+            ? formatted.data.companyName
+            : undefined,
+        jobId:
+          typeof formatted.data?.jobId === "string"
+            ? formatted.data.jobId
+            : undefined,
         data: formatted.data,
       });
+
+      // Trigger background sync to pull server-assigned IDs if available
+      store.fetchNotifications().catch(() => {});
+      store.fetchUnreadCount().catch(() => {});
     } catch (e) {
       logger.debug("NOTIFICATION_ENGINE", "In-app store sync skipped", e);
     }

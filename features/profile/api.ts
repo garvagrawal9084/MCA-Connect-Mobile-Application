@@ -22,18 +22,21 @@ export const profileApi = {
 
     const response = await apiClient.get<UserProfileResponse>(API_CONFIG.ENDPOINTS.AUTH.ME);
 
-    if (response.data && response.data.user) {
-      const profileUser = response.data.user;
-      // Persist fresh user profile data in local storage
-      storageService.setUser(profileUser);
-      // Sync into global Auth store
-      useAuthStore.getState().setUser(profileUser);
+    if (response.data) {
+      const raw = response.data as unknown as Record<string, unknown>;
+      const profileUser = (raw.user || raw.student || raw.data || raw) as UserProfile;
+      if (profileUser && (profileUser.email || profileUser.name || profileUser.id || profileUser._id)) {
+        // Persist fresh user profile data in local storage
+        storageService.setUser(profileUser);
+        // Sync into global Auth store
+        useAuthStore.getState().setUser(profileUser);
 
-      logger.info("PROFILE_API", "Profile retrieved and synced to local store", {
-        userId: profileUser.id || profileUser._id,
-        email: profileUser.email,
-        hasProfileImage: Boolean(profileUser.profileImage || profileUser.avatar),
-      });
+        logger.info("PROFILE_API", "Profile retrieved and synced to local store", {
+          userId: profileUser.id || profileUser._id,
+          email: profileUser.email,
+          hasProfileImage: Boolean(profileUser.profileImage || profileUser.avatar),
+        });
+      }
     }
 
     return response;

@@ -5,30 +5,58 @@
 import { create } from "zustand";
 import { NotificationItem, normalizeNotification, InAppNotificationBannerData } from "./types";
 import { notificationsApi } from "./api";
+import { storageService, NotificationPreferences } from "@/services/storage";
+import {
+  checkNotificationPermissions,
+  requestNotificationPermissionsWithPrompt,
+} from "@/services/notifications/notificationPermissions";
+import { notificationWatcher } from "@/services/notifications/notificationWatcher";
 import { logger } from "@/utils/logger";
 
 interface NotificationsState {
   notifications: NotificationItem[];
   unreadCount: number;
   isLoading: boolean;
-  jobAlertsEnabled: boolean;
   activeBanner: InAppNotificationBannerData | null;
+
+  // Preferences & System Status
+  masterNotificationsEnabled: boolean;
+  jobAlertsEnabled: boolean;
+  announcementsEnabled: boolean;
+  deadlineRemindersEnabled: boolean;
+  resultsPublishedEnabled: boolean;
+  systemPermissionStatus: "granted" | "denied" | "undetermined";
+  isPreferencesLoaded: boolean;
 
   fetchNotifications: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
-  toggleJobAlerts: (enabled: boolean) => void;
   showInAppBanner: (banner: InAppNotificationBannerData) => void;
   dismissInAppBanner: () => void;
+
+  // Preferences Actions
+  loadPreferences: () => Promise<void>;
+  setPreference: <K extends keyof NotificationPreferences>(key: K, value: boolean) => Promise<void>;
+  toggleJobAlerts: (enabled: boolean) => Promise<void>;
+  checkSystemPermissions: () => Promise<string>;
+  requestSystemPermissions: () => Promise<boolean>;
 }
 
 export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   notifications: [],
   unreadCount: 0,
   isLoading: false,
-  jobAlertsEnabled: true,
   activeBanner: null,
+
+  // Default Preferences
+  masterNotificationsEnabled: true,
+  jobAlertsEnabled: true,
+  announcementsEnabled: true,
+  deadlineRemindersEnabled: true,
+  resultsPublishedEnabled: true,
+  systemPermissionStatus: "undetermined",
+  isPreferencesLoaded: false,
 
   showInAppBanner: (banner: InAppNotificationBannerData) => {
     set({ activeBanner: banner });
@@ -37,6 +65,82 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   dismissInAppBanner: () => {
     set({ activeBanner: null });
+  },
+
+  loadPreferences: async () => {
+    try {
+      const stored = await storageService.getNotificationPreferences();
+      const status = await checkNotificationPermissions();
+
+      set({
+        masterNotificationsEnabled: stored?.masterNotificationsEnabled ?? true,
+        jobAlertsEnabled: stored?.jobAlertsEnabled ?? true,
+        announcementsEnabled: stored?.announcementsEnabled ?? true,
+        deadlineRemindersEnabled: stored?.deadlineRemindersEnabled ?? true,
+        resultsPublishedEnabled: stored?.resultsPublishedEnabled ?? true,
+        systemPermissionStatus: (status as "granted" | "denied" | "undetermined") || "undetermined",
+        isPreferencesLoaded: true,
+      });
+
+      logger.info("NOTIFICATIONS_STORE", "Loaded persisted notification preferences", {
+        jobAlerts: stored?.jobAlertsEnabled ?? true,
+        systemStatus: status,
+      });
+    } catch (err) {
+      logger.debug("NOTIFICATIONS_STORE", "Failed to load notification preferences", err);
+      set({ isPreferencesLoaded: true });
+    }
+  },
+
+  setPreference: async <K extends keyof NotificationPreferences>(key: K, value: boolean) => {
+    // If enabling any notification, ensure system permissions are verified
+    if (value === true) {
+      const status = await checkNotificationPermissions();
+      if (status !== "granted") {
+        const granted = await requestNotificationPermissionsWithPrompt();
+        if (!granted) {
+          set({
+            systemPermissionStatus: "denied",
+            [key]: false,
+          });
+          return;
+        }
+        set({ systemPermissionStatus: "granted" });
+      }
+    }
+
+    set({ [key]: value });
+
+    const current = get();
+    const updated: NotificationPreferences = {
+      masterNotificationsEnabled: current.masterNotificationsEnabled,
+      jobAlertsEnabled: current.jobAlertsEnabled,
+      announcementsEnabled: current.announcementsEnabled,
+      deadlineRemindersEnabled: current.deadlineRemindersEnabled,
+      resultsPublishedEnabled: current.resultsPublishedEnabled,
+      [key]: value,
+    };
+
+    await storageService.saveNotificationPreferences(updated);
+    logger.info("NOTIFICATIONS_STORE", `Updated notification preference [${key}] = ${value}`);
+  },
+
+  toggleJobAlerts: async (enabled: boolean) => {
+    await get().setPreference("jobAlertsEnabled", enabled);
+  },
+
+  checkSystemPermissions: async () => {
+    const status = await checkNotificationPermissions();
+    const normalized = (status as "granted" | "denied" | "undetermined") || "undetermined";
+    set({ systemPermissionStatus: normalized });
+    return normalized;
+  },
+
+  requestSystemPermissions: async () => {
+    const granted = await requestNotificationPermissionsWithPrompt();
+    const status = granted ? "granted" : "denied";
+    set({ systemPermissionStatus: status });
+    return granted;
   },
 
   fetchNotifications: async () => {
@@ -64,14 +168,33 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         normalizeNotification(item, idx)
       );
 
-      const unread = list.filter((n) => !n.read && !n.isRead).length;
+      // Preserve recent locally triggered notifications (e.g. created in this session)
+      // that might not have appeared in server response yet
+      const currentList = get().notifications;
+      const recentLocalItems = currentList.filter((n) => {
+        if (!n._id.startsWith("local-")) return false;
+        const existsInServer = list.some(
+          (s) =>
+            s._id === n._id ||
+            (s.type === n.type && s.title === n.title && s.message === n.message)
+        );
+        return !existsInServer;
+      });
+
+      const mergedList = [...recentLocalItems, ...list];
+      const unread = mergedList.filter((n) => !n.read && !n.isRead).length;
 
       set({
-        notifications: list,
+        notifications: mergedList,
         unreadCount: unread,
         isLoading: false,
       });
-      logger.info("NOTIFICATIONS_STORE", `Fetched ${list.length} notifications (${unread} unread)`);
+      logger.info("NOTIFICATIONS_STORE", `Fetched ${list.length} server notifications (${unread} total unread)`);
+
+      // Check for newly arrived unread notifications and trigger alerts
+      if (list.length > 0) {
+        notificationWatcher.inspectAndNotifyNewNotifications(list).catch(() => {});
+      }
     } catch (err) {
       logger.warn("NOTIFICATIONS_STORE", "Failed to fetch notifications", err);
       set({ isLoading: false });
@@ -168,10 +291,6 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       logger.warn("NOTIFICATIONS_STORE", "Failed to mark all notifications as read", err);
     }
   },
-
-  toggleJobAlerts: (enabled: boolean) => {
-    set({ jobAlertsEnabled: enabled });
-    logger.info("NOTIFICATIONS_STORE", `Job alerts toggled: ${enabled}`);
-  },
 }));
+
 

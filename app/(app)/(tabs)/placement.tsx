@@ -120,7 +120,7 @@ export default function PlacementScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FAFAFA] dark:bg-slate-950">
+    <SafeAreaView className="flex-1 bg-[#FAFAFA] dark:bg-slate-950" edges={["top", "left", "right"]}>
       <StatusBar style="auto" />
 
       {/* Header */}
@@ -146,7 +146,7 @@ export default function PlacementScreen() {
       </Animated.View>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

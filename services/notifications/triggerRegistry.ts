@@ -48,7 +48,7 @@ export const triggerRegistry: Record<string, TriggerDefinition<any>> = {
   APPLICATION_DEADLINE: {
     channelId: NOTIFICATION_CHANNELS.APPLICATION_UPDATES.id,
     defaultPriority: "high",
-    preferenceKey: "deadlineReminders",
+    preferenceKey: "deadlineRemindersEnabled",
     formatter: (payload) => ({
       title: `⏳ Deadline Alert: ${payload.companyName}`,
       body: `Applications for ${payload.jobTitle} close ${
@@ -67,7 +67,7 @@ export const triggerRegistry: Record<string, TriggerDefinition<any>> = {
   APPLICATION_STATUS_UPDATE: {
     channelId: NOTIFICATION_CHANNELS.APPLICATION_UPDATES.id,
     defaultPriority: "high",
-    preferenceKey: "applicationUpdates",
+    preferenceKey: "jobAlertsEnabled",
     formatter: (payload) => ({
       title: `📋 Application Update: ${payload.companyName}`,
       body: `Your application status for ${payload.jobTitle} is now: ${payload.status}.`,
@@ -83,7 +83,7 @@ export const triggerRegistry: Record<string, TriggerDefinition<any>> = {
   RESULT_PUBLISHED: {
     channelId: NOTIFICATION_CHANNELS.ACADEMIC_RESULTS.id,
     defaultPriority: "high",
-    preferenceKey: "resultsPublished",
+    preferenceKey: "resultsPublishedEnabled",
     formatter: (payload) => ({
       title: `📊 Results Announced: ${payload.testTitle}`,
       body: `Scores are now available.${payload.rank ? ` Your Rank: #${payload.rank}.` : ""} Tap to inspect full assessment breakdown.`,
@@ -100,6 +100,7 @@ export const triggerRegistry: Record<string, TriggerDefinition<any>> = {
   CAMPUS_ANNOUNCEMENT: {
     channelId: NOTIFICATION_CHANNELS.CAMPUS_ANNOUNCEMENTS.id,
     defaultPriority: "default",
+    preferenceKey: "announcementsEnabled",
     formatter: (payload) => ({
       title: `📢 ${payload.title}`,
       body: payload.message,

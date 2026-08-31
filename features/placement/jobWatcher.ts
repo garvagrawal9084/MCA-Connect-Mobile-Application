@@ -60,13 +60,17 @@ class JobWatcher {
 
   /**
    * Inspect a list of fetched jobs.
-   * On initial cold boot:
+   * On initial cold boot / silent mode:
    *  - Restores known job IDs from persistent SecureStore.
-   *  - If store has historical IDs, any newer job will trigger instant notifications!
-   *  - If fresh installation, establishes baseline and saves to storage.
-   * On subsequent updates/polls: triggers system status bar notifications for every newly published job.
+   *  - Automatically baselines all existing server jobs without dispatching notifications.
+   *  - Persists the updated baseline to storage.
+   * On subsequent active updates/polling (silent: false):
+   *  - Detects newly published opportunities and triggers notification bar alerts & in-app banner.
    */
-  async inspectAndNotifyNewJobs(jobs: PlacementJob[]): Promise<void> {
+  async inspectAndNotifyNewJobs(
+    jobs: PlacementJob[],
+    options?: { silent?: boolean }
+  ): Promise<void> {
     if (!jobs || !Array.isArray(jobs) || jobs.length === 0) return;
 
     // Load persisted known IDs on cold boot
@@ -77,16 +81,32 @@ class JobWatcher {
         this.isInitialized = true;
         logger.info("JOB_WATCHER", `Restored ${this.knownJobIds.size} known job IDs from persistent storage`);
       } else {
-        // Fresh installation: baseline existing jobs without spamming
+        // First install / first run ever: baseline all currently fetched jobs so initial startup doesn't flood alerts
         jobs.forEach((job) => {
           const id = job._id;
           if (id) this.knownJobIds.add(id);
         });
         this.isInitialized = true;
         await saveStoredJobIds(Array.from(this.knownJobIds));
-        logger.info("JOB_WATCHER", `Initialized fresh baseline with ${this.knownJobIds.size} job IDs`);
+        logger.info("JOB_WATCHER", `Initialized first-time baseline with ${this.knownJobIds.size} job IDs`);
         return;
       }
+    }
+
+    // If explicit silent inspection requested (e.g. initial silent sync on launch)
+    if (options?.silent) {
+      let hasNew = false;
+      jobs.forEach((job) => {
+        const id = job._id;
+        if (id && !this.knownJobIds.has(id)) {
+          this.knownJobIds.add(id);
+          hasNew = true;
+        }
+      });
+      if (hasNew) {
+        await saveStoredJobIds(Array.from(this.knownJobIds));
+      }
+      return;
     }
 
     // Detect freshly published jobs (jobs whose _id is not in knownJobIds)
@@ -141,13 +161,13 @@ class JobWatcher {
   /**
    * Proactively polls the latest jobs from backend and inspects for newly published opportunities
    */
-  async syncAndCheckJobs(): Promise<number> {
+  async syncAndCheckJobs(options?: { silent?: boolean }): Promise<number> {
     try {
       const res = await placementCenterApi.getJobs({ limit: 20 });
       const rawJobs = res.data?.jobs || [];
       const jobs = rawJobs.filter((j) => j.hiddenFromUsers !== true);
       if (jobs.length > 0) {
-        await this.inspectAndNotifyNewJobs(jobs);
+        await this.inspectAndNotifyNewJobs(jobs, options);
       }
       return jobs.length;
     } catch (err) {

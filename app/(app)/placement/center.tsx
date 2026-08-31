@@ -83,6 +83,13 @@ export default function PlacementCenterScreen() {
     });
   }, [fetchDashboardStats, fetchClosingSoon, fetchJobs, activeTab]);
 
+  // Deep-link auto-open if selectedJob is set (e.g. from notification banner or notifications screen)
+  useEffect(() => {
+    if (selectedJob) {
+      setActiveJobModal(selectedJob);
+    }
+  }, [selectedJob]);
+
   // Debounced search handler
   const handleSearchChange = (text: string) => {
     setLocalSearch(text);
@@ -697,7 +704,10 @@ export default function PlacementCenterScreen() {
       <PlacementJobDetailModal
         visible={activeJobModal !== null}
         job={activeJobModal}
-        onClose={() => setActiveJobModal(null)}
+        onClose={() => {
+          setActiveJobModal(null);
+          setSelectedJob(null);
+        }}
       />
     </SafeAreaView>
   );
