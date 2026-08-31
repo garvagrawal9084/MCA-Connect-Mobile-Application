@@ -9,7 +9,8 @@ import * as Device from "expo-device";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { NOTIFICATION_CHANNELS } from "./channels";
 import { logger } from "@/utils/logger";
-import { apiClient } from "@/services/api";
+import { storageService } from "@/services/storage";
+import { notificationsApi } from "@/features/notifications/api";
 
 const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
@@ -194,7 +195,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    // 3. Obtain remote push token and native FCM device token when running in standalone build
+    // 3. Obtain remote push token when running in standalone build
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??
@@ -206,29 +207,25 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       });
       const token = pushTokenData.data;
 
-      let nativeToken: string | undefined;
-      try {
-        const devTokenPromise = Notifications.getDevicePushTokenAsync();
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
-        const devicePushData = await Promise.race([devTokenPromise, timeoutPromise]);
-        if (devicePushData && typeof devicePushData === "object" && "data" in devicePushData) {
-          nativeToken = (devicePushData as any).data;
-        }
-      } catch {
-        // Fallback for environments without direct native token
+      if (!token || (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken["))) {
+        logger.warn("NOTIFICATIONS", `Unexpected push token format received: ${token}`);
+        return null;
       }
 
-      logger.info("NOTIFICATIONS", "Acquired Push Tokens for standalone / production build", {
-        expoTokenPreview: token ? token.substring(0, 15) + "..." : "none",
-        nativeTokenPreview: nativeToken ? nativeToken.substring(0, 15) + "..." : "none",
-        projectId,
-      });
+      logger.info("NOTIFICATIONS", `Acquired Expo Push Token: ${token}`);
 
-      // Register tokens with backend
-      if (token || nativeToken) {
-        await registerTokenWithBackend(token, nativeToken);
+      // Check if user is currently authenticated with a valid Bearer token
+      const accessToken = storageService.getAccessToken();
+      if (!accessToken) {
+        logger.info(
+          "NOTIFICATIONS",
+          "Acquired Expo push token, but user is not logged in yet. Device registration will execute immediately upon login."
+        );
+        return token;
       }
 
+      // Register token with backend
+      await registerTokenWithBackend(token);
       return token;
     } catch (tokenErr) {
       logger.warn("NOTIFICATIONS", "Remote push token not available in current environment", tokenErr);
@@ -241,58 +238,32 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 }
 
 /**
- * Best-effort token synchronization with the backend across multiple API endpoints
+ * Register device push token with backend using official /api/notifications/register-device endpoint
  */
-export async function registerTokenWithBackend(token: string, nativeToken?: string): Promise<boolean> {
-  if (!token && !nativeToken) return false;
-
-  const endpoints = [
-    "/api/notifications/register-device",
-    "/api/notifications/push-token",
-    "/api/notifications/token",
-    "/api/notifications/register",
-    "/api/notifications/subscribe",
-    "/api/notifications/device-token",
-    "/api/auth/me/push-token",
-    "/api/students/push-token",
-    "/api/users/push-token",
-  ];
+export async function registerTokenWithBackend(token: string): Promise<boolean> {
+  if (!token) return false;
 
   const payload = {
     pushToken: token,
-    token: token || nativeToken,
-    expoPushToken: token,
-    deviceToken: nativeToken || token,
-    fcmToken: nativeToken || token,
-    nativeToken: nativeToken,
     platform: Platform.OS,
-    deviceModel: Device.modelName || Device.deviceName || "Android Device",
-    appVersion: Constants.expoConfig?.version || "1.0.0",
+    deviceModel: Device.modelName || Device.deviceName || "Unknown Android device",
   };
 
-  let registered = false;
-
-  for (const endpoint of endpoints) {
-    try {
-      const res = await apiClient.post(endpoint, payload);
-      if (res.success || (res.statusCode && res.statusCode < 400)) {
-        logger.info("NOTIFICATIONS", `Successfully registered push token at ${endpoint}`);
-        registered = true;
-      }
-    } catch {
-      // Continue to next fallback endpoint
-    }
-  }
-
-  // Also sync into user profile if supported
   try {
-    await apiClient.patch("/api/auth/me", { pushToken: token, fcmToken: nativeToken });
-  } catch {
-    // Best-effort
+    const res = await notificationsApi.registerDevice(payload);
+    if (res.success || (res.statusCode && res.statusCode < 400)) {
+      logger.info("NOTIFICATIONS", "Successfully registered push token with backend", {
+        registeredDevices: res.data?.registeredDevices,
+        platform: payload.platform,
+      });
+      return true;
+    }
+    logger.warn("NOTIFICATIONS", "Failed to register push token with backend", res);
+    return false;
+  } catch (err) {
+    logger.error("NOTIFICATIONS", "Error registering push token with backend", err);
+    return false;
   }
-
-  logger.debug("NOTIFICATIONS", "Backend push token registration completed", { registered });
-  return registered;
 }
 
 /**

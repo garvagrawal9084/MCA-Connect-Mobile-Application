@@ -32,8 +32,12 @@ This document specifies the data integrity architecture and empty-state patterns
 - Removed `DUMMY_PROFILE_DATA` constant and `isUsingDummyFallback` property.
 - Profile strictly represents authenticated user profile state from `/api/auth/me`.
 
-### [`features/placement/mockData.ts`](file:///Users/garvagrawal/Documents/Coding/MCA-CONNECT/features/placement/mockData.ts)
-- Completely deprecated and cleared all mock arrays (`MOCK_CHALLENGES`, `MOCK_TESTS`, `MOCK_LEADERBOARD`, `MOCK_DRIVES`, `MOCK_CERTIFICATES`).
+### [`features/placement/usePlacementReadinessStats.ts`](file:///Users/garvagrawal/Documents/Coding/MCA-CONNECT/features/placement/usePlacementReadinessStats.ts)
+- Removed hardcoded `8.0` baseline CGPA fallback.
+- Readiness metrics strictly calculate from authenticated student academic records (`user.education.postGraduation.cgpa`, `user.education.graduation.cgpa`), real LeetCode solves, enrolled challenges, and assessment results from backend APIs.
+
+### Alumni Network Screens & Modals
+- All screens (`directory.tsx`, `companies.tsx`, `batches.tsx`, `events.tsx`, `mentors.tsx`, `community.tsx`, `referral.tsx`, `support.tsx`, `scis-family.tsx`) strictly consume live backend endpoints (`/api/people/search`, `/api/company-groups`, `/api/events`, `/api/mentors`, `/api/forums`, `/api/support-tickets`, etc.) and render clean, accessible empty states when records are unavailable.
 
 ---
 
@@ -56,4 +60,5 @@ Every empty state conforms to the unified UI style:
 
 ## 3. Verification & Compliance
 - `npx tsc --noEmit`: **0 errors**.
-- Full test pass across all feature areas.
+- Full test pass across all screens and feature areas.
+

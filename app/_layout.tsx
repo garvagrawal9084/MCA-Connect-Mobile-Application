@@ -76,36 +76,64 @@ export default function RootLayout() {
       }
     }, 15000);
 
-    // 4. Listener for when a user interacts with / taps a system bar notification
+    // Helper function to handle notification tap navigation & job inspection
+    const handleNotificationTap = async (data: Record<string, unknown> | undefined) => {
+      if (!data) return;
+      logger.info("NOTIFICATIONS", "Handling notification tap response with payload", data);
+
+      const nestedData = (typeof data.data === "object" && data.data !== null)
+        ? (data.data as Record<string, unknown>)
+        : undefined;
+
+      const rawJobId = data.jobId || nestedData?.jobId;
+      const jobId = typeof rawJobId === "string" && rawJobId.trim().length > 0 ? rawJobId.trim() : undefined;
+
+      if (jobId) {
+        logger.info("NOTIFICATIONS", `Notification tap has jobId: ${jobId}. Fetching details & opening Placement Center`);
+        const fetchJobDetail = usePlacementCenterStore.getState().fetchJobDetail;
+        const setSelectedJob = usePlacementCenterStore.getState().setSelectedJob;
+
+        try {
+          const job = await fetchJobDetail(jobId);
+          if (job) {
+            setSelectedJob(job);
+          }
+        } catch (err) {
+          logger.warn("NOTIFICATIONS", `Failed to pre-fetch job ${jobId} on notification tap`, err);
+        }
+
+        router.push("/(app)/placement/center" as never);
+        return;
+      }
+
+      // If jobId is unavailable, navigate using data.screen
+      const rawScreen = data.screen || nestedData?.screen;
+      const targetScreen = typeof rawScreen === "string" && rawScreen.trim().length > 0 ? rawScreen.trim() : undefined;
+
+      if (targetScreen) {
+        logger.info("NOTIFICATIONS", `Navigating to screen from notification data: ${targetScreen}`);
+        router.push(targetScreen as never);
+      }
+    };
+
+    // 4. Cold-start check: user launched app by tapping a notification while app was closed
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+          handleNotificationTap(data);
+        }
+      })
+      .catch((err) => {
+        logger.debug("LAYOUT", "Cold start notification response check skipped", err);
+      });
+
+    // 5. Listener for when a user interacts with / taps a system bar notification while app is running
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
       async (response) => {
         try {
           const data = response.notification.request.content.data as Record<string, unknown> | undefined;
-          logger.info("NOTIFICATIONS", "Notification tapped in system bar", data);
-
-          if (!data) return;
-
-          // If notification contains a jobId, open Placement Center with that job
-          if (data.jobId && typeof data.jobId === "string") {
-            const fetchJobDetail = usePlacementCenterStore.getState().fetchJobDetail;
-            const setSelectedJob = usePlacementCenterStore.getState().setSelectedJob;
-            
-            // Attempt to load and set selected job for the modal
-            try {
-              const job = await fetchJobDetail(data.jobId);
-              if (job) setSelectedJob(job);
-            } catch {
-              // Best-effort
-            }
-
-            router.push("/(app)/placement/center" as never);
-            return;
-          }
-
-          // Otherwise route to the target screen if specified
-          if (data.screen && typeof data.screen === "string") {
-            router.push(data.screen as never);
-          }
+          await handleNotificationTap(data);
         } catch (err) {
           logger.error("NOTIFICATIONS", "Error handling notification tap response", err);
         }

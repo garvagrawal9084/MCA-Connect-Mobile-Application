@@ -32,6 +32,7 @@ interface NotificationsState {
   fetchUnreadCount: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<boolean>;
   showInAppBanner: (banner: InAppNotificationBannerData) => void;
   dismissInAppBanner: () => void;
 
@@ -289,6 +290,33 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       await notificationsApi.markAllAsRead(unreadIds);
     } catch (err) {
       logger.warn("NOTIFICATIONS_STORE", "Failed to mark all notifications as read", err);
+    }
+  },
+
+  deleteNotification: async (id: string): Promise<boolean> => {
+    if (!id) return false;
+    const prev = get().notifications;
+    const updated = prev.filter((n) => n._id !== id && n.id !== id);
+    const unread = updated.filter((n) => !n.read && !n.isRead).length;
+
+    // Optimistically update local state
+    set({
+      notifications: updated,
+      unreadCount: unread,
+    });
+
+    try {
+      const res = await notificationsApi.deleteNotification(id);
+      logger.info("NOTIFICATIONS_STORE", `Successfully deleted notification ${id}`, res);
+      return res.success;
+    } catch (err) {
+      logger.warn("NOTIFICATIONS_STORE", `Failed to delete notification ${id} on server, reverting`, err);
+      // Revert optimistic delete on error
+      set({
+        notifications: prev,
+        unreadCount: prev.filter((n) => !n.read && !n.isRead).length,
+      });
+      return false;
     }
   },
 }));

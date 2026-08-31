@@ -14,12 +14,14 @@ interface NotificationCardProps {
   item: NotificationItem;
   delay?: number;
   onPress: () => void;
+  onDelete?: (item: NotificationItem) => void;
 }
 
 export const NotificationCard: React.FC<NotificationCardProps> = ({
   item,
   delay = 0,
   onPress,
+  onDelete,
 }) => {
   const isReminder =
     item.type === "JOB_DEADLINE_REMINDER" ||
@@ -124,9 +126,24 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
               >
                 {item.title}
               </Text>
-              <Text className="text-[10px] font-semibold text-slate-400">
-                {formatTimestamp(item.createdAt)}
-              </Text>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-[10px] font-semibold text-slate-400">
+                  {formatTimestamp(item.createdAt)}
+                </Text>
+                {onDelete && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onDelete(item);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    className="p-0.5 rounded"
+                    accessibilityLabel="Delete notification"
+                  >
+                    <Ionicons name="trash-outline" size={13} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <Text className="text-xs text-slate-600 dark:text-slate-300 leading-4">
