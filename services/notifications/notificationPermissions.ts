@@ -10,6 +10,9 @@ import Constants, { ExecutionEnvironment } from "expo-constants";
 import { NOTIFICATION_CHANNELS } from "./channels";
 import { logger } from "@/utils/logger";
 import { apiClient } from "@/services/api";
+import { storageService } from "@/services/storage";
+
+const EAS_PROJECT_ID = "97969023-a829-43e7-8bf0-00ad4847726a";
 
 const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
@@ -199,15 +202,14 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     // The backend sends through Expo and intentionally does not accept raw FCM tokens.
     try {
       const projectId =
-        Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-      if (!projectId) {
-        logger.error("NOTIFICATIONS", "EAS project ID is missing; push token cannot be created");
-        return null;
-      }
+        Constants.expoConfig?.extra?.eas?.projectId ??
+        Constants.easConfig?.projectId ??
+        EAS_PROJECT_ID;
 
       const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       const token = pushTokenData.data;
       activeExpoPushToken = token;
+      await storageService.saveExpoPushToken(token);
       logger.info("NOTIFICATIONS", "Acquired Expo Push Token", {
         tokenPreview: token.substring(0, 15) + "...",
       });
@@ -248,13 +250,15 @@ export async function registerTokenWithBackend(token: string): Promise<boolean> 
 }
 
 /** Remove this phone from the signed-in account before clearing auth state. */
-export async function unregisterPushNotificationsAsync(): Promise<void> {
-  if (!activeExpoPushToken) return;
+export async function unregisterPushNotificationsAsync(accessToken?: string | null): Promise<void> {
+  const pushToken = activeExpoPushToken || await storageService.getExpoPushToken();
+  if (!pushToken) return;
   try {
     await apiClient.post("/api/notifications/unregister-device", {
-      pushToken: activeExpoPushToken,
-    });
+      pushToken,
+    }, accessToken ? { token: accessToken } : undefined);
     activeExpoPushToken = null;
+    await storageService.clearExpoPushToken();
     logger.info("NOTIFICATIONS", "Push token unregistered from backend");
   } catch (error) {
     logger.warn("NOTIFICATIONS", "Could not unregister push token", error);

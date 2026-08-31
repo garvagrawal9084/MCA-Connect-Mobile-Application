@@ -194,7 +194,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   logout: () => {
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
-    void unregisterPushNotificationsAsync();
+    // Capture and pass the token explicitly so clearing local session storage
+    // cannot remove the Authorization header from the unregister request.
+    const accessToken = get().accessToken || storageService.getAccessToken();
+    void unregisterPushNotificationsAsync(accessToken);
     storageService.clearSession();
     jobWatcher.reset();
     notificationWatcher.reset();

@@ -40,6 +40,7 @@ const STORAGE_KEYS = {
   REFRESH_TOKEN: "scis_auth_refresh_token",
   USER: "scis_auth_user",
   NOTIFICATION_PREFERENCES: "scis_notification_preferences",
+  EXPO_PUSH_TOKEN: "scis_expo_push_token",
   SAVED_JOB_IDS: "scis_saved_job_ids",
 } as const;
 
@@ -446,6 +447,23 @@ class StorageService {
     } catch (e) {
       logger.debug("STORAGE", "Failed to save notification preferences", e);
     }
+  }
+
+  /**
+   * Expo push token persistence. This is intentionally separate from the auth
+   * session so logout can still identify the registered physical device after
+   * an application restart.
+   */
+  async getExpoPushToken(): Promise<string | null> {
+    return safeSecureGet(STORAGE_KEYS.EXPO_PUSH_TOKEN);
+  }
+
+  async saveExpoPushToken(token: string): Promise<void> {
+    await safeSecureSet(STORAGE_KEYS.EXPO_PUSH_TOKEN, token);
+  }
+
+  async clearExpoPushToken(): Promise<void> {
+    await safeSecureDelete(STORAGE_KEYS.EXPO_PUSH_TOKEN);
   }
 
   /**

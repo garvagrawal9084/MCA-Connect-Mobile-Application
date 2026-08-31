@@ -9,6 +9,7 @@ import { notificationWatcher } from "@/services/notifications/notificationWatche
 import { jobWatcher } from "@/features/placement/jobWatcher";
 import { usePlacementCenterStore } from "@/features/placement/store";
 import { useNotificationsStore } from "@/features/notifications/store";
+import { useAuthStore } from "@/features/auth/authStore";
 import { InAppNotificationBanner } from "@/components/notifications/InAppNotificationBanner";
 import { logger } from "@/utils/logger";
 
@@ -33,13 +34,16 @@ export default function RootLayout() {
         logger.debug("LAYOUT", "Background task registration skipped", err);
       });
 
-      // Synchronize latest published jobs & server notifications on startup (alerts if new ones arrived while closed)
-      jobWatcher.syncAndCheckJobs().catch((err) => {
-        logger.debug("LAYOUT", "Initial job sync skipped", err);
-      });
-      notificationWatcher.syncAndCheckNotifications().catch((err) => {
-        logger.debug("LAYOUT", "Initial notification sync skipped", err);
-      });
+      // Protected API synchronization starts only after an authenticated
+      // session has been restored. Login itself registers the push token.
+      if (useAuthStore.getState().isAuthenticated) {
+        jobWatcher.syncAndCheckJobs().catch((err) => {
+          logger.debug("LAYOUT", "Initial job sync skipped", err);
+        });
+        notificationWatcher.syncAndCheckNotifications().catch((err) => {
+          logger.debug("LAYOUT", "Initial notification sync skipped", err);
+        });
+      }
     });
 
     // 2. AppState change listener: sync jobs, notifications & push tokens when app comes to foreground
@@ -48,6 +52,10 @@ export default function RootLayout() {
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
+        if (!useAuthStore.getState().isAuthenticated) {
+          appState.current = nextAppState;
+          return;
+        }
         logger.info("LAYOUT", "App returned to foreground: synchronizing jobs and notifications");
         jobWatcher.syncAndCheckJobs({ silent: false }).catch((e) =>
           logger.debug("LAYOUT", "Foreground job sync deferred", e)
@@ -66,7 +74,7 @@ export default function RootLayout() {
 
     // 3. Periodic real-time job & notification polling interval (every 30 seconds while active)
     const pollInterval = setInterval(() => {
-      if (appState.current === "active") {
+      if (appState.current === "active" && useAuthStore.getState().isAuthenticated) {
         jobWatcher.syncAndCheckJobs({ silent: false }).catch((e) =>
           logger.debug("LAYOUT", "Periodic job sync skipped", e)
         );
