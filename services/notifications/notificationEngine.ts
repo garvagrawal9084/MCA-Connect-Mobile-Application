@@ -132,11 +132,14 @@ class NotificationEngine {
       }
 
       // 5. Schedule / present notification in system notification bar
-      const scheduleTriggerInput = options?.delaySeconds
-        ? ({
+      const scheduleTriggerInput: Notifications.NotificationTriggerInput = options?.delaySeconds
+        ? {
             type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
             seconds: options.delaySeconds,
-          } as Notifications.TimeIntervalTriggerInput)
+            channelId: formatted.channelId,
+          }
+        : formatted.channelId
+        ? { channelId: formatted.channelId }
         : null;
 
       const notificationId = await Notifications.scheduleNotificationAsync({

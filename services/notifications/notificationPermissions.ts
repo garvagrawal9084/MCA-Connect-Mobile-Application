@@ -116,18 +116,28 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     // 3. Obtain remote push token when running in standalone build or iOS
     try {
-      const pushTokenData = await Notifications.getExpoPushTokenAsync();
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.easConfig?.projectId ??
+        "97969023-a829-43e7-8bf0-00ad4847726a";
+
+      const pushTokenData = await Notifications.getExpoPushTokenAsync({
+        projectId,
+      });
       const token = pushTokenData.data;
-      logger.info("NOTIFICATIONS", "Acquired Expo Push Token", {
-        tokenPreview: token.substring(0, 15) + "...",
+      logger.info("NOTIFICATIONS", "Acquired Expo Push Token for standalone / production build", {
+        tokenPreview: token ? token.substring(0, 15) + "..." : "none",
+        projectId,
       });
 
       // Register token with backend
-      registerTokenWithBackend(token);
+      if (token) {
+        await registerTokenWithBackend(token);
+      }
 
       return token;
     } catch (tokenErr) {
-      logger.debug("NOTIFICATIONS", "Remote push token not available in current environment", tokenErr);
+      logger.warn("NOTIFICATIONS", "Remote push token not available in current environment", tokenErr);
       return null;
     }
   } catch (error) {
@@ -137,28 +147,40 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 }
 
 /**
- * Best-effort token synchronization with the backend
+ * Best-effort token synchronization with the backend across multiple API endpoints
  */
-async function registerTokenWithBackend(token: string): Promise<void> {
+export async function registerTokenWithBackend(token: string): Promise<boolean> {
+  if (!token) return false;
+
   const endpoints = [
     "/api/notifications/register-device",
     "/api/notifications/push-token",
+    "/api/notifications/token",
     "/api/auth/me/push-token",
+    "/api/students/push-token",
+    "/api/users/push-token",
   ];
+
+  const payload = {
+    pushToken: token,
+    token,
+    platform: Platform.OS,
+    deviceModel: Device.modelName || Device.deviceName || "Android Device",
+    appVersion: Constants.expoConfig?.version || "1.0.0",
+  };
 
   for (const endpoint of endpoints) {
     try {
-      const res = await apiClient.post(endpoint, {
-        pushToken: token,
-        platform: Platform.OS,
-        deviceModel: Device.modelName || "unknown",
-      });
-      if (res.success) {
+      const res = await apiClient.post(endpoint, payload);
+      if (res.success || (res.statusCode && res.statusCode < 400)) {
         logger.info("NOTIFICATIONS", `Successfully registered push token at ${endpoint}`);
-        return;
+        return true;
       }
     } catch {
       // Continue to next fallback endpoint
     }
   }
+
+  logger.debug("NOTIFICATIONS", "Backend push token registration completed (best-effort)");
+  return false;
 }

@@ -1,9 +1,11 @@
 import "../global.css";
-import React, { useEffect } from "react";
-import { View, LogBox } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { View, LogBox, AppState, AppStateStatus } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { notificationEngine } from "@/services/notifications";
+import { registerForPushNotificationsAsync } from "@/services/notifications/notificationPermissions";
+import { jobWatcher } from "@/features/placement/jobWatcher";
 import { usePlacementCenterStore } from "@/features/placement/store";
 import { useNotificationsStore } from "@/features/notifications/store";
 import { InAppNotificationBanner } from "@/components/notifications/InAppNotificationBanner";
@@ -17,10 +19,42 @@ LogBox.ignoreLogs([
 
 export default function RootLayout() {
   const router = useRouter();
+  const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     // 1. Initialize notification engine, channels & permissions
-    notificationEngine.init();
+    notificationEngine.init().then(() => {
+      // Trigger initial silent check for latest published jobs
+      jobWatcher.syncAndCheckJobs().catch((err) => {
+        logger.debug("LAYOUT", "Initial job sync skipped", err);
+      });
+    });
+
+    // 2. AppState change listener: sync jobs & push tokens when app comes to foreground
+    const appStateSubscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        logger.info("LAYOUT", "App returned to foreground: synchronizing jobs and notifications");
+        jobWatcher.syncAndCheckJobs().catch((e) =>
+          logger.debug("LAYOUT", "Foreground job sync deferred", e)
+        );
+        registerForPushNotificationsAsync().catch((e) =>
+          logger.debug("LAYOUT", "Foreground push token sync deferred", e)
+        );
+      }
+      appState.current = nextAppState;
+    });
+
+    // 3. Periodic real-time job polling interval (every 60 seconds while active)
+    const jobPollInterval = setInterval(() => {
+      if (appState.current === "active") {
+        jobWatcher.syncAndCheckJobs().catch((e) =>
+          logger.debug("LAYOUT", "Periodic job sync skipped", e)
+        );
+      }
+    }, 60000);
 
     // 2. Listener for when a user interacts with / taps a system bar notification
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
@@ -78,6 +112,8 @@ export default function RootLayout() {
     });
 
     return () => {
+      appStateSubscription.remove();
+      clearInterval(jobPollInterval);
       responseSubscription.remove();
       receivedSubscription.remove();
     };

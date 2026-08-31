@@ -8,6 +8,8 @@ import { create } from "zustand";
 import { AuthUser, LoginCredentials, LoginResponseData } from "./types";
 import { authApi } from "./api";
 import { storageService } from "@/services/storage";
+import { registerForPushNotificationsAsync } from "@/services/notifications/notificationPermissions";
+import { jobWatcher } from "@/features/placement/jobWatcher";
 import { logger } from "@/utils/logger";
 
 export interface AuthState {
@@ -115,6 +117,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         rememberMe: isRememberMe,
       });
 
+      // Synchronize push token with authenticated session in background
+      if (hasValidSession) {
+        registerForPushNotificationsAsync().catch((e) =>
+          logger.debug("AUTH_STORE", "Push registration after bootstrap deferred", e)
+        );
+      }
+
       return hasValidSession;
     } catch (err) {
       logger.error("AUTH_STORE", "Unhandled error during authentication bootstrap", err);
@@ -160,6 +169,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         rememberMe: credentials.rememberMe,
       });
 
+      // Synchronize push token with backend for authenticated student
+      registerForPushNotificationsAsync().catch((pushErr) => {
+        logger.debug("AUTH_STORE", "Background push token sync after login deferred", pushErr);
+      });
+
       return data;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
@@ -174,6 +188,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
     storageService.clearSession();
+    jobWatcher.reset();
     set({
       user: null,
       accessToken: null,

@@ -106,10 +106,16 @@
   [2026-08-31 02:03:30.000] [INFO]  [CHALLENGES_CONFIG] Centralized CHALLENGES and CERTIFICATES endpoints in constants/config.ts under API_CONFIG.ENDPOINTS.
   [2026-08-31 02:03:40.000] [INFO]  [LEADERBOARD_ENHANCEMENT] Extended LeaderboardEntry and DailyMaxRecord in features/challenges/types.ts and store.ts to unpack pairName, groupName, dailyTotal, and students arrays.
   [2026-08-31 02:03:50.000] [INFO]  [ZERO_GRAPH_POLICY] Confirmed Leaderboard and Daily Max Solvers render entirely using mobile-first UI cards with gold/silver/bronze podium badges, student roll numbers, and solve counts without any graph libraries.
-  [2026-08-31 02:04:00.000] [INFO]  [TEST_SUITE] Executed 7 live endpoint and data normalization tests via scratch test suite: 100% PASS. TypeScript typecheck passed with 0 errors.
+  [2026-08-31 09:24:00.000] [INFO]  [APK_NOTIFICATIONS_FIX] Resolved missing notification delivery for newly posted jobs in standalone APK builds:
+    - Added expo-notifications plugin & Android 13+ permissions (POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, VIBRATE, WAKE_LOCK) to app.json.
+    - Updated getExpoPushTokenAsync with explicit EAS projectId ("97969023-a829-43e7-8bf0-00ad4847726a") in notificationPermissions.ts.
+    - Synchronized push token upon user login and session bootstrap in authStore.ts.
+    - Routed Android notification channels with explicit channelId in scheduleNotificationAsync inside notificationEngine.ts.
+    - Persisted seen job IDs across APK app terminations via SecureStore in JobWatcher (scis_known_job_ids).
+    - Integrated AppState foreground return and 60-second periodic polling in app/_layout.tsx for real-time job detection.
+    - Created docs/apk-job-notification-fix.md and learning/28-apk-build-push-and-job-notification-architecture.md. Verified with npx tsc --noEmit (0 errors).
 
-
-
-
-
-
+  [2026-08-31 09:28:40.000] [INFO]  [PLACEMENT_STUDIO] Removed Download button from "My Certificates" modal in components/placement/PlacementDetailModal.tsx.
+    - Replaced actionable Download button with a verified credential badge and issue date display.
+    - Verified TypeScript build: npx tsc --noEmit (0 errors).
+    - Created docs/remove-certificate-download-button.md.
