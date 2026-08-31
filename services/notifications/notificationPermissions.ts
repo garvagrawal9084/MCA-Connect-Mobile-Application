@@ -15,6 +15,13 @@ import { notificationsApi } from "@/features/notifications/api";
 
 const EAS_PROJECT_ID = "97969023-a829-43e7-8bf0-00ad4847726a";
 
+/** Mask a push token for logging: first 12 + "..." + last 6 chars. Never log the full token. */
+function maskPushToken(token: string): string {
+  if (!token) return "";
+  if (token.length <= 18) return `${token.slice(0, 4)}...`;
+  return `${token.slice(0, 12)}...${token.slice(-6)}`;
+}
+
 const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
   Constants.appOwnership === "expo";
@@ -217,7 +224,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       activeExpoPushToken = token;
       await storageService.saveExpoPushToken(token);
       logger.info("NOTIFICATIONS", "Acquired Expo Push Token", {
-        tokenPreview: token.substring(0, 15) + "...",
+        tokenPreview: maskPushToken(token),
       });
 
       // Check if user is currently authenticated with a valid Bearer token
@@ -259,15 +266,25 @@ export async function registerTokenWithBackend(token: string): Promise<boolean> 
     const res = await notificationsApi.registerDevice(payload);
     if (res.success || (res.statusCode && res.statusCode < 400)) {
       logger.info("NOTIFICATIONS", "Successfully registered push token with backend", {
-        registeredDevices: res.data?.registeredDevices,
+        tokenPreview: maskPushToken(token),
         platform: payload.platform,
+        response: res.data ?? res.message,
       });
       return true;
     }
-    logger.warn("NOTIFICATIONS", "Failed to register push token with backend", res);
+    logger.warn("NOTIFICATIONS", "Backend rejected push token registration (will retry on next login/foreground)", {
+      tokenPreview: maskPushToken(token),
+      response: res,
+    });
     return false;
   } catch (err) {
-    logger.error("NOTIFICATIONS", "Error registering push token with backend", err);
+    // Never drop this silently: it is logged clearly here, and the same
+    // token remains persisted in storageService so the next login or
+    // app-foreground event (see app/_layout.tsx) will retry registration.
+    logger.error("NOTIFICATIONS", "Error registering push token with backend (will retry on next login/foreground)", {
+      tokenPreview: maskPushToken(token),
+      error: err,
+    });
     return false;
   }
 }
@@ -282,9 +299,16 @@ export async function unregisterPushNotificationsAsync(accessToken?: string | nu
     }, accessToken ? { token: accessToken } : undefined);
     activeExpoPushToken = null;
     await storageService.clearExpoPushToken();
-    logger.info("NOTIFICATIONS", "Push token unregistered from backend");
+    logger.info("NOTIFICATIONS", "Push token unregistered from backend", {
+      tokenPreview: maskPushToken(pushToken),
+    });
   } catch (error) {
-    logger.warn("NOTIFICATIONS", "Could not unregister push token", error);
+    // Intentionally leave the token persisted in storage on failure (do not
+    // clear it) so a later logout attempt can still find it and retry.
+    logger.warn("NOTIFICATIONS", "Could not unregister push token (left persisted for retry)", {
+      tokenPreview: maskPushToken(pushToken),
+      error,
+    });
   }
 }
 

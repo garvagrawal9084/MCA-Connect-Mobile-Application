@@ -28,7 +28,7 @@ export interface AuthState {
   // Lifecycle & Actions
   initializeAuth: () => Promise<boolean>;
   login: (credentials: LoginCredentials) => Promise<LoginResponseData>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
   setUser: (user: AuthUser | null) => void;
   clearError: () => void;
@@ -192,12 +192,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   /**
    * Sign out student and clean both in-memory and persistent session storage
    */
-  logout: () => {
+  logout: async (): Promise<void> => {
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
-    // Capture and pass the token explicitly so clearing local session storage
-    // cannot remove the Authorization header from the unregister request.
+    // Capture the token explicitly, then AWAIT the unregister call so it is
+    // guaranteed to fire (with a still-valid Bearer token and the still
+    // persisted push token) before session storage is wiped below.
     const accessToken = get().accessToken || storageService.getAccessToken();
-    void unregisterPushNotificationsAsync(accessToken);
+    try {
+      await unregisterPushNotificationsAsync(accessToken);
+    } catch (err) {
+      logger.warn("AUTH_STORE", "Push token unregister failed during logout", err);
+    }
     storageService.clearSession();
     jobWatcher.reset();
     notificationWatcher.reset();

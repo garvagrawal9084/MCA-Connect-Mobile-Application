@@ -2,7 +2,7 @@
  * SCIS Connect Mobile - Notifications API Client
  */
 
-import { apiClient, ApiResponse } from "@/services/api";
+import { apiClient, ApiError, ApiResponse } from "@/services/api";
 import { API_CONFIG } from "@/constants/config";
 import { logger } from "@/utils/logger";
 import { NotificationItem } from "./types";
@@ -152,7 +152,16 @@ export const notificationsApi = {
         payload
       );
     } catch (err) {
-      logger.warn("NOTIFICATIONS_API", "Primary register-device failed, attempting alias /push-token", err);
+      // Only fall back to the alias route when the primary route itself is
+      // missing (404/405). Any other failure (401 auth, 5xx, network) is a
+      // real failure and must propagate so the caller can log/retry it,
+      // rather than being masked by a second silent attempt.
+      const status = err instanceof ApiError ? err.statusCode : undefined;
+      if (status !== 404 && status !== 405) {
+        logger.error("NOTIFICATIONS_API", "register-device request failed", err);
+        throw err;
+      }
+      logger.warn("NOTIFICATIONS_API", "Primary register-device route not found, attempting alias /push-token", err);
       return apiClient.post<{ registeredDevices?: number }>(
         API_CONFIG.ENDPOINTS.NOTIFICATIONS.PUSH_TOKEN,
         payload
