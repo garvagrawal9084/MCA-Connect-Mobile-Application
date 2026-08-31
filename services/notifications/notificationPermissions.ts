@@ -15,6 +15,8 @@ const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
   Constants.appOwnership === "expo";
 
+let activeExpoPushToken: string | null = null;
+
 // Configure default in-app foreground notification presentation behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -116,14 +118,22 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     // 3. Obtain remote push token when running in standalone build or iOS
     try {
-      const pushTokenData = await Notifications.getExpoPushTokenAsync();
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      if (!projectId) {
+        logger.error("NOTIFICATIONS", "EAS project ID is missing; push token cannot be created");
+        return null;
+      }
+
+      const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       const token = pushTokenData.data;
+      activeExpoPushToken = token;
       logger.info("NOTIFICATIONS", "Acquired Expo Push Token", {
         tokenPreview: token.substring(0, 15) + "...",
       });
 
       // Register token with backend
-      registerTokenWithBackend(token);
+      await registerTokenWithBackend(token);
 
       return token;
     } catch (tokenErr) {
@@ -140,25 +150,30 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
  * Best-effort token synchronization with the backend
  */
 async function registerTokenWithBackend(token: string): Promise<void> {
-  const endpoints = [
-    "/api/notifications/register-device",
-    "/api/notifications/push-token",
-    "/api/auth/me/push-token",
-  ];
-
-  for (const endpoint of endpoints) {
-    try {
-      const res = await apiClient.post(endpoint, {
-        pushToken: token,
-        platform: Platform.OS,
-        deviceModel: Device.modelName || "unknown",
-      });
-      if (res.success) {
-        logger.info("NOTIFICATIONS", `Successfully registered push token at ${endpoint}`);
-        return;
-      }
-    } catch {
-      // Continue to next fallback endpoint
+  try {
+    const res = await apiClient.post("/api/notifications/register-device", {
+      pushToken: token,
+      platform: Platform.OS,
+      deviceModel: Device.modelName || "unknown",
+    });
+    if (res.success) {
+      logger.info("NOTIFICATIONS", "Successfully registered push token with backend");
     }
+  } catch (error) {
+    logger.warn("NOTIFICATIONS", "Could not register push token with backend", error);
+  }
+}
+
+/** Remove this phone from the signed-in account before clearing auth state. */
+export async function unregisterPushNotificationsAsync(): Promise<void> {
+  if (!activeExpoPushToken) return;
+  try {
+    await apiClient.post("/api/notifications/unregister-device", {
+      pushToken: activeExpoPushToken,
+    });
+    activeExpoPushToken = null;
+    logger.info("NOTIFICATIONS", "Push token unregistered from backend");
+  } catch (error) {
+    logger.warn("NOTIFICATIONS", "Could not unregister push token", error);
   }
 }

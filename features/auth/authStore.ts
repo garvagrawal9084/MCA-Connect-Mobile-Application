@@ -1,4 +1,4 @@
-/**
+`/**
  * SCIS Connect Mobile - Global Authentication Store (Zustand)
  * Provides reactive client-side authentication state and lifecycle methods.
  * Adheres strictly to the architectural standards in app/AGENTS.md.
@@ -9,6 +9,10 @@ import { AuthUser, LoginCredentials, LoginResponseData } from "./types";
 import { authApi } from "./api";
 import { storageService } from "@/services/storage";
 import { logger } from "@/utils/logger";
+import {
+  registerForPushNotificationsAsync,
+  unregisterPushNotificationsAsync,
+} from "@/services/notifications/notificationPermissions";
 
 export interface AuthState {
   user: AuthUser | null;
@@ -86,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               email: freshUser?.email,
               name: freshUser?.name,
             });
+            void registerForPushNotificationsAsync();
             return true;
           }
         } catch (refreshErr) {
@@ -114,6 +119,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: hasValidSession,
         rememberMe: isRememberMe,
       });
+
+      if (hasValidSession) void registerForPushNotificationsAsync();
 
       return hasValidSession;
     } catch (err) {
@@ -160,6 +167,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         rememberMe: credentials.rememberMe,
       });
 
+      void registerForPushNotificationsAsync();
+
       return data;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
@@ -173,6 +182,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   logout: () => {
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
+    void unregisterPushNotificationsAsync();
     storageService.clearSession();
     set({
       user: null,
@@ -201,6 +211,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
           error: null,
         });
+        void registerForPushNotificationsAsync();
         return true;
       }
       set({ isLoading: false });

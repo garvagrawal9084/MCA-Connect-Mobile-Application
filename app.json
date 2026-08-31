@@ -42,7 +42,14 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#B91C1C",
+          "defaultChannel": "placement-jobs"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
