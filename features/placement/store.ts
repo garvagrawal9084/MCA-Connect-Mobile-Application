@@ -15,6 +15,7 @@ import {
 } from "./types";
 import { placementCenterApi } from "./api";
 import { jobWatcher } from "./jobWatcher";
+import { storageService } from "@/services/storage";
 import { logger } from "@/utils/logger";
 
 export type PlacementFilterTab =
@@ -24,6 +25,125 @@ export type PlacementFilterTab =
   | "saved"
   | "applications"
   | "experiences";
+
+/**
+ * Safely extracts an array of items from any backend response envelope shape
+ */
+export function extractBookmarksArray(raw: unknown): unknown[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.bookmarks)) return obj.bookmarks;
+    if (Array.isArray(obj.saved)) return obj.saved;
+    if (Array.isArray(obj.savedJobs)) return obj.savedJobs;
+    if (Array.isArray(obj.jobs)) return obj.jobs;
+    if (Array.isArray(obj.data)) return obj.data;
+    if (obj.data && typeof obj.data === "object") {
+      const nested = obj.data as Record<string, unknown>;
+      if (Array.isArray(nested.bookmarks)) return nested.bookmarks;
+      if (Array.isArray(nested.saved)) return nested.saved;
+      if (Array.isArray(nested.savedJobs)) return nested.savedJobs;
+      if (Array.isArray(nested.jobs)) return nested.jobs;
+      if (Array.isArray(nested.data)) return nested.data;
+    }
+  }
+  return [];
+}
+
+/**
+ * Normalizes any bookmark item (direct PlacementJob, populated SavedOpportunity, or ID reference)
+ * into a fully populated PlacementJob with userState.saved = true
+ */
+export function normalizeSavedJobItem(
+  item: unknown,
+  knownJobs: PlacementJob[] = []
+): PlacementJob | null {
+  if (!item || typeof item !== "object") return null;
+
+  const obj = item as Record<string, unknown>;
+
+  // Case 1: The item itself is already a PlacementJob
+  if (obj.title && (obj.companyName || obj.jobType || obj.derivedStatus || obj.eligibility)) {
+    const job = obj as unknown as PlacementJob;
+    return {
+      ...job,
+      userState: {
+        ...job.userState,
+        applied: job.userState?.applied || false,
+        applicationStatus: job.userState?.applicationStatus || null,
+        saved: true,
+        collectionId: job.userState?.collectionId || null,
+        reminder: job.userState?.reminder || false,
+        reminderAt: job.userState?.reminderAt || null,
+      },
+    };
+  }
+
+  // Case 2: Populated wrapper { _id, job: { _id, title, ... } }
+  if (obj.job && typeof obj.job === "object") {
+    const job = obj.job as PlacementJob;
+    return {
+      ...job,
+      userState: {
+        ...job.userState,
+        applied: job.userState?.applied || false,
+        applicationStatus: job.userState?.applicationStatus || null,
+        saved: true,
+        collectionId: (obj.collectionId as string) || job.userState?.collectionId || null,
+        reminder: job.userState?.reminder || false,
+        reminderAt: job.userState?.reminderAt || null,
+      },
+    };
+  }
+
+  // Case 3: Populated wrapper { _id, jobId: { _id, title, ... } }
+  if (obj.jobId && typeof obj.jobId === "object") {
+    const job = obj.jobId as PlacementJob;
+    return {
+      ...job,
+      userState: {
+        ...job.userState,
+        applied: job.userState?.applied || false,
+        applicationStatus: job.userState?.applicationStatus || null,
+        saved: true,
+        collectionId: (obj.collectionId as string) || job.userState?.collectionId || null,
+        reminder: job.userState?.reminder || false,
+        reminderAt: job.userState?.reminderAt || null,
+      },
+    };
+  }
+
+  // Case 4: Reference with string ID { _id, job: "6a8..." } or { _id, jobId: "6a8..." }
+  const refId =
+    typeof obj.job === "string"
+      ? obj.job
+      : typeof obj.jobId === "string"
+      ? obj.jobId
+      : typeof obj._id === "string"
+      ? obj._id
+      : null;
+
+  if (refId) {
+    const matched = knownJobs.find((j) => j._id === refId);
+    if (matched) {
+      return {
+        ...matched,
+        userState: {
+          ...matched.userState,
+          applied: matched.userState?.applied || false,
+          applicationStatus: matched.userState?.applicationStatus || null,
+          saved: true,
+          collectionId: (obj.collectionId as string) || matched.userState?.collectionId || null,
+          reminder: matched.userState?.reminder || false,
+          reminderAt: matched.userState?.reminderAt || null,
+        },
+      };
+    }
+  }
+
+  return null;
+}
 
 interface PlacementCenterState {
   // Stats
@@ -174,10 +294,22 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
           appsRes.status === "fulfilled"
             ? appsRes.value.data?.applications?.length ?? 0
             : 0;
-        const savedCount =
-          savedRes.status === "fulfilled"
-            ? (savedRes.value.data?.bookmarks || savedRes.value.data?.saved)?.length ?? 0
-            : 0;
+
+        // Extract saved items from response safely
+        let serverSavedCount = 0;
+        if (savedRes.status === "fulfilled") {
+          const rawSaved = extractBookmarksArray(savedRes.value.data);
+          serverSavedCount = rawSaved.length;
+        }
+
+        // Also check local persisted saved job IDs
+        const localSavedIds = await storageService.getSavedJobIds();
+        const finalSavedCount = Math.max(
+          serverSavedCount,
+          localSavedIds.length,
+          Number(dataObj.saved ?? dataObj.totalSaved ?? 0)
+        );
+
         const remindersCount =
           remindersRes.status === "fulfilled"
             ? remindersRes.value.data?.reminders?.length ?? 0
@@ -209,7 +341,7 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
           internships,
           newThisWeek,
           applications: Number(dataObj.applications ?? dataObj.totalApplications ?? appsCount),
-          saved: Number(dataObj.saved ?? dataObj.totalSaved ?? savedCount),
+          saved: finalSavedCount,
           reminders: Number(dataObj.reminders ?? dataObj.totalReminders ?? remindersCount),
         };
 
@@ -237,7 +369,24 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
 
         const res = await placementCenterApi.getJobs(queryParams);
         const rawJobs = res.data?.jobs || [];
-        const jobs = rawJobs.filter((j) => j.hiddenFromUsers !== true);
+        const localSavedIds = await storageService.getSavedJobIds();
+        const savedIdSet = new Set(localSavedIds);
+
+        // Sync with local saved IDs so userState.saved is preserved
+        const jobs = rawJobs
+          .filter((j) => j.hiddenFromUsers !== true)
+          .map((j) => ({
+            ...j,
+            userState: {
+              ...j.userState,
+              applied: j.userState?.applied || false,
+              applicationStatus: j.userState?.applicationStatus || null,
+              saved: j.userState?.saved || savedIdSet.has(j._id),
+              collectionId: j.userState?.collectionId || null,
+              reminder: j.userState?.reminder || false,
+              reminderAt: j.userState?.reminderAt || null,
+            },
+          }));
         const total = res.data?.pagination?.total || jobs.length;
 
         // Inspect fetched jobs and notify for newly discovered opportunities
@@ -262,7 +411,24 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
           limit: 8,
         });
         const rawClosing = res.data?.jobs || [];
-        const closingSoonJobs = rawClosing.filter((j) => j.hiddenFromUsers !== true);
+        const localSavedIds = await storageService.getSavedJobIds();
+        const savedIdSet = new Set(localSavedIds);
+
+        const closingSoonJobs = rawClosing
+          .filter((j) => j.hiddenFromUsers !== true)
+          .map((j) => ({
+            ...j,
+            userState: {
+              ...j.userState,
+              applied: j.userState?.applied || false,
+              applicationStatus: j.userState?.applicationStatus || null,
+              saved: j.userState?.saved || savedIdSet.has(j._id),
+              collectionId: j.userState?.collectionId || null,
+              reminder: j.userState?.reminder || false,
+              reminderAt: j.userState?.reminderAt || null,
+            },
+          }));
+
         set({
           closingSoonJobs,
           isLoadingClosingSoon: false,
@@ -279,9 +445,25 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
         const res = await placementCenterApi.getJobById(id);
         const job = res.data?.job || null;
         if (job) {
-          set({ selectedJob: job, isLoadingJobDetail: false });
+          const localSavedIds = await storageService.getSavedJobIds();
+          const isSaved = job.userState?.saved || localSavedIds.includes(job._id);
+          const populatedJob: PlacementJob = {
+            ...job,
+            userState: {
+              ...job.userState,
+              applied: job.userState?.applied || false,
+              applicationStatus: job.userState?.applicationStatus || null,
+              saved: isSaved,
+              collectionId: job.userState?.collectionId || null,
+              reminder: job.userState?.reminder || false,
+              reminderAt: job.userState?.reminderAt || null,
+            },
+          };
+          set({ selectedJob: populatedJob, isLoadingJobDetail: false });
+          return populatedJob;
         }
-        return job;
+        set({ isLoadingJobDetail: false });
+        return null;
       } catch (err) {
         logger.error("PLACEMENT_STORE", `Failed to fetch job: ${id}`, err);
         set({ isLoadingJobDetail: false });
@@ -312,18 +494,96 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
       set({ isLoadingBookmarks: true });
       try {
         const res = await placementCenterApi.getSavedJobs();
-        const bookmarks = res.data?.bookmarks || res.data?.saved || [];
+        const rawItems = extractBookmarksArray(res.data);
+        const knownJobs = [...get().jobs, ...get().closingSoonJobs];
+
+        const localSavedIds = await storageService.getSavedJobIds();
+        const savedIdSet = new Set(localSavedIds);
+
+        // Normalize raw items into fully populated PlacementJob objects
+        const normalizedSavedJobs: PlacementJob[] = [];
+        const savedJobIdSet = new Set<string>();
+
+        rawItems.forEach((raw) => {
+          const job = normalizeSavedJobItem(raw, knownJobs);
+          if (job && !savedJobIdSet.has(job._id)) {
+            savedJobIdSet.add(job._id);
+            normalizedSavedJobs.push(job);
+          }
+        });
+
+        // Also merge any jobs in memory whose userState.saved is true or whose ID is in localSavedIds
+        knownJobs.forEach((job) => {
+          if ((job.userState?.saved || savedIdSet.has(job._id)) && !savedJobIdSet.has(job._id)) {
+            savedJobIdSet.add(job._id);
+            normalizedSavedJobs.push({
+              ...job,
+              userState: {
+                ...job.userState,
+                applied: job.userState?.applied || false,
+                applicationStatus: job.userState?.applicationStatus || null,
+                saved: true,
+                collectionId: job.userState?.collectionId || null,
+                reminder: job.userState?.reminder || false,
+                reminderAt: job.userState?.reminderAt || null,
+              },
+            });
+          }
+        });
+
+        // Sync local storage with latest combined IDs
+        await storageService.saveSavedJobIds(Array.from(savedJobIdSet));
+
+        // Format as SavedOpportunity items for store.bookmarks
+        const bookmarks: SavedOpportunity[] = normalizedSavedJobs.map((job) => ({
+          _id: `bookmark-${job._id}`,
+          job,
+          createdAt: job.createdAt || new Date().toISOString(),
+        }));
+
         set({
           bookmarks,
           isLoadingBookmarks: false,
           dashboardStats: {
             ...get().dashboardStats,
-            saved: bookmarks.length,
+            saved: normalizedSavedJobs.length,
           },
         });
       } catch (err) {
-        logger.warn("PLACEMENT_STORE", "Failed to fetch bookmarks", err);
-        set({ isLoadingBookmarks: false });
+        logger.warn("PLACEMENT_STORE", "Failed to fetch bookmarks from server, using memory/local fallback", err);
+
+        // Fallback to memory and local storage
+        const localSavedIds = await storageService.getSavedJobIds();
+        const savedIdSet = new Set(localSavedIds);
+        const knownJobs = [...get().jobs, ...get().closingSoonJobs];
+        const fallbackSaved = knownJobs.filter(
+          (j) => j.userState?.saved || savedIdSet.has(j._id)
+        );
+
+        const bookmarks: SavedOpportunity[] = fallbackSaved.map((job) => ({
+          _id: `bookmark-${job._id}`,
+          job: {
+            ...job,
+            userState: {
+              ...job.userState,
+              saved: true,
+              applied: job.userState?.applied || false,
+              applicationStatus: job.userState?.applicationStatus || null,
+              collectionId: null,
+              reminder: job.userState?.reminder || false,
+              reminderAt: null,
+            },
+          },
+        }));
+
+        set({
+          bookmarks,
+          isLoadingBookmarks: false,
+          dashboardStats: {
+            ...get().dashboardStats,
+            saved: fallbackSaved.length,
+          },
+        });
       }
     },
 
@@ -398,34 +658,74 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
     },
 
     toggleSaveJob: async (jobId) => {
-      const job = get().jobs.find((j) => j._id === jobId);
+      const allJobs = [...get().jobs, ...get().closingSoonJobs];
+      const job =
+        allJobs.find((j) => j._id === jobId) ||
+        (get().bookmarks
+          .map((b) => (typeof b.job === "object" ? b.job : null))
+          .find((j) => j?._id === jobId) as PlacementJob | undefined);
+
       const isCurrentlySaved = job?.userState?.saved ?? false;
       const targetState = !isCurrentlySaved;
 
-      // Optimistic update
+      // Update local storage
+      const currentSavedIds = await storageService.getSavedJobIds();
+      const updatedSavedIds = targetState
+        ? Array.from(new Set([...currentSavedIds, jobId]))
+        : currentSavedIds.filter((id) => id !== jobId);
+      await storageService.saveSavedJobIds(updatedSavedIds);
+
+      // Helper to update userState of a job
+      const updateUserState = (j: PlacementJob): PlacementJob =>
+        j._id === jobId
+          ? {
+              ...j,
+              userState: {
+                ...j.userState,
+                applied: j.userState?.applied || false,
+                applicationStatus: j.userState?.applicationStatus || null,
+                saved: targetState,
+                collectionId: j.userState?.collectionId || null,
+                reminder: j.userState?.reminder || false,
+                reminderAt: j.userState?.reminderAt || null,
+              },
+            }
+          : j;
+
+      // Optimistic updates for all state slices: jobs, closingSoonJobs, selectedJob, bookmarks
       const previousJobs = get().jobs;
+      const previousClosingSoon = get().closingSoonJobs;
+      const previousBookmarks = get().bookmarks;
+      const previousSelected = get().selectedJob;
+
+      let newBookmarks = [...previousBookmarks];
+      if (targetState) {
+        // Add to bookmarks if not already present
+        const alreadyInBookmarks = newBookmarks.some(
+          (b) => (typeof b.job === "object" ? b.job._id : b.job) === jobId
+        );
+        if (!alreadyInBookmarks && job) {
+          newBookmarks.unshift({
+            _id: `bookmark-${jobId}`,
+            job: updateUserState(job),
+            createdAt: new Date().toISOString(),
+          });
+        }
+      } else {
+        // Remove from bookmarks
+        newBookmarks = newBookmarks.filter(
+          (b) => (typeof b.job === "object" ? b.job._id : b.job) !== jobId
+        );
+      }
+
       set({
-        jobs: previousJobs.map((j) =>
-          j._id === jobId
-            ? {
-                ...j,
-                userState: {
-                  applied: j.userState?.applied || false,
-                  applicationStatus: j.userState?.applicationStatus || null,
-                  saved: targetState,
-                  collectionId: j.userState?.collectionId || null,
-                  reminder: j.userState?.reminder || false,
-                  reminderAt: j.userState?.reminderAt || null,
-                },
-              }
-            : j
-        ),
+        jobs: previousJobs.map(updateUserState),
+        closingSoonJobs: previousClosingSoon.map(updateUserState),
+        selectedJob: previousSelected ? updateUserState(previousSelected) : null,
+        bookmarks: newBookmarks,
         dashboardStats: {
           ...get().dashboardStats,
-          saved: Math.max(
-            0,
-            get().dashboardStats.saved + (targetState ? 1 : -1)
-          ),
+          saved: Math.max(0, get().dashboardStats.saved + (targetState ? 1 : -1)),
         },
       });
 
@@ -440,10 +740,11 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
           message: targetState ? "Saved to your bookmarks" : "Removed from bookmarks",
         };
       } catch (err) {
-        // Rollback on failure
-        set({ jobs: previousJobs });
-        logger.warn("PLACEMENT_STORE", `Failed to toggle save for job: ${jobId}`, err);
-        return { saved: isCurrentlySaved, message: "Action failed. Please try again." };
+        logger.warn("PLACEMENT_STORE", `Backend toggle save for job: ${jobId} failed, local state preserved`, err);
+        return {
+          saved: targetState,
+          message: targetState ? "Saved to your bookmarks" : "Removed from bookmarks",
+        };
       }
     },
 

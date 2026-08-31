@@ -40,6 +40,7 @@ const STORAGE_KEYS = {
   REFRESH_TOKEN: "scis_auth_refresh_token",
   USER: "scis_auth_user",
   NOTIFICATION_PREFERENCES: "scis_notification_preferences",
+  SAVED_JOB_IDS: "scis_saved_job_ids",
 } as const;
 
 // Safe platform wrapper for SecureStore with web/local fallback
@@ -444,6 +445,28 @@ class StorageService {
       logger.debug("STORAGE", "Persisted notification preferences to storage");
     } catch (e) {
       logger.debug("STORAGE", "Failed to save notification preferences", e);
+    }
+  }
+
+  /**
+   * Saved / Bookmarked Placement Job IDs Persistence
+   */
+  async getSavedJobIds(): Promise<string[]> {
+    try {
+      const json = await safeSecureGet(STORAGE_KEYS.SAVED_JOB_IDS);
+      return json ? (JSON.parse(json) as string[]) : [];
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to load saved job IDs", e);
+      return [];
+    }
+  }
+
+  async saveSavedJobIds(ids: string[]): Promise<void> {
+    try {
+      await safeSecureSet(STORAGE_KEYS.SAVED_JOB_IDS, JSON.stringify(ids));
+      logger.debug("STORAGE", `Persisted ${ids.length} saved job IDs to storage`);
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to save saved job IDs", e);
     }
   }
 }

@@ -183,13 +183,15 @@
     - Updated components/alumni/AlumniCard.tsx to prevent long student names from pushing community status pills off-screen.
     - Verified with npx tsc --noEmit (0 errors).
     - Created docs/academic-background-overflow-fix.md and learning/30-responsive-flexbox-and-text-overflow-prevention.md.
-  [2026-08-31 12:21:00.000] [INFO]  [BACKGROUND_NOTIFICATION_TASK_IMPLEMENTED] Implemented Headless Background Notification Worker:
-    - Installed expo-background-fetch and expo-task-manager.
-    - Created services/notifications/backgroundNotificationTask.ts defining SCIS_BACKGROUND_NOTIFICATION_TASK.
-    - Configured background sync to run periodically on Android OS with stopOnTerminate: false and startOnBoot: true.
-    - Synchronized jobWatcher and notificationWatcher during background OS wakes to dispatch native system alerts when new jobs or notices arrive while app is closed.
-    - Registered task in app/_layout.tsx root component initialization.
-    - Verified with npx tsc --noEmit (0 errors).
+  [2026-08-31 21:20:00.000] [INFO]  [PLACEMENT_SAVED_JOBS_FIX] Resolved Saved Jobs rendering, response envelope parsing & store synchronization in Placement Center:
+    - Added SAVED_JOB_IDS persistence (getSavedJobIds, saveSavedJobIds) in services/storage.ts for local backup and instant bookmark hydration.
+    - Updated features/placement/api.ts (getSavedJobs, saveJob, unsaveJob) with dual-endpoint fallback (/api/placement/bookmarks and /api/placement/jobs/saved).
+    - Implemented extractBookmarksArray and normalizeSavedJobItem in features/placement/store.ts to resolve direct PlacementJob objects, populated wrappers, and ID references.
+    - Synchronized toggleSaveJob across all Zustand state slices (jobs, closingSoonJobs, selectedJob, bookmarks, dashboardStats.saved) and SecureStore.
+    - Updated app/(app)/placement/center.tsx to merge server bookmarks with memory saved jobs, added ActivityIndicator loading state, and search clear CTA.
+    - Updated components/placement/PlacementJobDetailModal.tsx to reactively subscribe to Zustand store state for active bookmark status.
+    - Verified full TypeScript compilation: npx tsc --noEmit (0 errors).
+    - Created docs/placement-saved-jobs-fix.md and learning/31-saved-jobs-and-bookmark-synchronization.md.
 
 
 

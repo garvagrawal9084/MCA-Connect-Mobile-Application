@@ -88,11 +88,19 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
   const toggleSaveJob = usePlacementCenterStore((state) => state.toggleSaveJob);
   const createReminder = usePlacementCenterStore((state) => state.createReminder);
 
+  const currentStoreJob = usePlacementCenterStore((state) =>
+    job
+      ? state.jobs.find((j) => j._id === job._id) ||
+        state.closingSoonJobs.find((j) => j._id === job._id) ||
+        (state.selectedJob?._id === job._id ? state.selectedJob : null)
+      : null
+  );
+
   if (!job) return null;
 
-  const isSaved = job.userState?.saved ?? false;
-  const isApplied = job.userState?.applied ?? false;
-  const hasReminder = job.userState?.reminder ?? false;
+  const isSaved = currentStoreJob?.userState?.saved ?? job.userState?.saved ?? false;
+  const isApplied = currentStoreJob?.userState?.applied ?? job.userState?.applied ?? false;
+  const hasReminder = currentStoreJob?.userState?.reminder ?? job.userState?.reminder ?? false;
 
   // Resolve external portal & careers links
   const officialUrl = formatExternalUrl(
