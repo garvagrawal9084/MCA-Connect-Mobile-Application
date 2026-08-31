@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from "react";
 import { View, LogBox, AppState, AppStateStatus } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
-import { notificationEngine, registerBackgroundNotificationTaskAsync } from "@/services/notifications";
+import { notificationEngine, recordRemotePushEvent, registerBackgroundNotificationTaskAsync } from "@/services/notifications";
 import { registerForPushNotificationsAsync } from "@/services/notifications/notificationPermissions";
 import { notificationWatcher } from "@/services/notifications/notificationWatcher";
 import { jobWatcher } from "@/features/placement/jobWatcher";
@@ -85,40 +85,58 @@ export default function RootLayout() {
     }, 15000);
 
     // 4. Listener for when a user interacts with / taps a system bar notification
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-      async (response) => {
-        try {
-          const data = response.notification.request.content.data as Record<string, unknown> | undefined;
-          logger.info("NOTIFICATIONS", "Notification tapped in system bar", data);
+    const handledResponseIds = new Set<string>();
+    const handleNotificationResponse = async (response: Notifications.NotificationResponse) => {
+      const responseId = response.notification.request.identifier;
+      if (handledResponseIds.has(responseId)) return;
+      handledResponseIds.add(responseId);
 
-          if (!data) return;
+      try {
+        const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+        logger.info("NOTIFICATIONS", "Notification tapped in system bar", data);
 
-          // If notification contains a jobId, open Placement Center with that job
-          if (data.jobId && typeof data.jobId === "string") {
-            const fetchJobDetail = usePlacementCenterStore.getState().fetchJobDetail;
-            const setSelectedJob = usePlacementCenterStore.getState().setSelectedJob;
-            
-            // Attempt to load and set selected job for the modal
-            try {
-              const job = await fetchJobDetail(data.jobId);
-              if (job) setSelectedJob(job);
-            } catch {
-              // Best-effort
-            }
+        recordRemotePushEvent(data, "opened").catch(() => {});
 
-            router.push("/(app)/placement/center" as never);
-            return;
+        if (!data) return;
+
+        // If notification contains a jobId, open Placement Center with that job
+        if (data.jobId && typeof data.jobId === "string") {
+          const fetchJobDetail = usePlacementCenterStore.getState().fetchJobDetail;
+          const setSelectedJob = usePlacementCenterStore.getState().setSelectedJob;
+
+          // Attempt to load and set selected job for the modal
+          try {
+            const job = await fetchJobDetail(data.jobId);
+            if (job) setSelectedJob(job);
+          } catch {
+            // Best-effort
           }
 
-          // Otherwise route to the target screen if specified
-          if (data.screen && typeof data.screen === "string") {
-            router.push(data.screen as never);
-          }
-        } catch (err) {
-          logger.error("NOTIFICATIONS", "Error handling notification tap response", err);
+          router.push("/(app)/placement/center" as never);
+          return;
         }
+
+        // Otherwise route to the target screen if specified
+        if (data.screen && typeof data.screen === "string") {
+          router.push(data.screen as never);
+        }
+      } catch (err) {
+        logger.error("NOTIFICATIONS", "Error handling notification tap response", err);
       }
+    };
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
+      handleNotificationResponse
     );
+    // A tap that launches a fully closed app can occur before the listener is
+    // mounted. Consume Expo's persisted response once so it is still counted.
+    Notifications.getLastNotificationResponseAsync()
+      .then(async (response) => {
+        if (!response) return;
+        await handleNotificationResponse(response);
+        await Notifications.clearLastNotificationResponseAsync();
+      })
+      .catch((error) => logger.debug("NOTIFICATIONS", "No launch notification response", error));
 
     // 5. Listener for foreground notification arrival
     const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
@@ -127,6 +145,7 @@ export default function RootLayout() {
       });
 
       const data = notification.request.content.data as Record<string, unknown> | undefined;
+      recordRemotePushEvent(data, "received").catch(() => {});
       useNotificationsStore.getState().showInAppBanner({
         id: `fg-${Date.now()}`,
         type: String(data?.type || "SYSTEM"),
