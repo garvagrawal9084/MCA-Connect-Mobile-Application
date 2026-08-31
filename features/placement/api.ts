@@ -96,33 +96,58 @@ export const placementCenterApi = {
 
   /**
    * Bookmark / Save a job opportunity
-   * Endpoint: POST /api/placement-center/jobs/:id/save
+   * Endpoint: POST /api/placement/jobs/:id/save
    */
   async saveJob(
     id: string,
     collectionId?: string
-  ): Promise<ApiResponse<{ saved: SavedOpportunity }>> {
+  ): Promise<ApiResponse<{ saved?: SavedOpportunity }>> {
     logger.info("PLACEMENT_API", `Saving job: ${id}`);
-    return apiClient.post<{ saved: SavedOpportunity }>(
-      `${API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.JOBS}/${id}/save`,
-      { collectionId }
-    );
+    try {
+      return await apiClient.post<{ saved?: SavedOpportunity }>(
+        `${API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.JOBS}/${id}/save`,
+        { collectionId }
+      );
+    } catch (err) {
+      logger.warn("PLACEMENT_API", `POST /jobs/${id}/save failed, trying POST /bookmarks fallback`, err);
+      try {
+        return await apiClient.post<{ saved?: SavedOpportunity }>(
+          API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.BOOKMARKS,
+          { jobId: id, collectionId }
+        );
+      } catch (fallbackErr) {
+        logger.warn("PLACEMENT_API", `Fallback bookmark post also failed`, fallbackErr);
+        throw err;
+      }
+    }
   },
 
   /**
    * Unsave / Remove bookmark from a job
-   * Endpoint: DELETE /api/placement-center/jobs/:id/save
+   * Endpoint: DELETE /api/placement/jobs/:id/save
    */
   async unsaveJob(id: string): Promise<ApiResponse<unknown>> {
     logger.info("PLACEMENT_API", `Unsaving job: ${id}`);
-    return apiClient.delete(
-      `${API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.JOBS}/${id}/save`
-    );
+    try {
+      return await apiClient.delete(
+        `${API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.JOBS}/${id}/save`
+      );
+    } catch (err) {
+      logger.warn("PLACEMENT_API", `DELETE /jobs/${id}/save failed, trying DELETE /bookmarks/${id} fallback`, err);
+      try {
+        return await apiClient.delete(
+          `${API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.BOOKMARKS}/${id}`
+        );
+      } catch (fallbackErr) {
+        logger.warn("PLACEMENT_API", `Fallback bookmark delete also failed`, fallbackErr);
+        throw err;
+      }
+    }
   },
 
   /**
    * Schedule a job deadline reminder
-   * Endpoint: POST /api/placement-center/jobs/:id/reminder
+   * Endpoint: POST /api/placement/jobs/:id/reminder
    */
   async createReminder(
     id: string,
@@ -137,7 +162,7 @@ export const placementCenterApi = {
 
   /**
    * Fetch current student's submitted applications
-   * Endpoint: GET /api/placement-center/applications/me
+   * Endpoint: GET /api/placement/applications/me
    */
   async getMyApplications(): Promise<
     ApiResponse<{ applications: JobApplication[] }>
@@ -150,16 +175,50 @@ export const placementCenterApi = {
 
   /**
    * Fetch saved / bookmarked opportunities
-   * Endpoint: GET /api/placement-center/bookmarks
+   * Endpoint: GET /api/placement/bookmarks with fallback to /api/placement/jobs/saved
    */
   async getSavedJobs(): Promise<
-    ApiResponse<{ bookmarks?: SavedOpportunity[]; saved?: SavedOpportunity[] }>
+    ApiResponse<{
+      bookmarks?: SavedOpportunity[] | PlacementJob[];
+      saved?: SavedOpportunity[] | PlacementJob[];
+      savedJobs?: SavedOpportunity[] | PlacementJob[];
+      jobs?: PlacementJob[];
+      data?: unknown;
+    }>
   > {
     logger.info("PLACEMENT_API", "Fetching saved bookmarks");
-    return apiClient.get<{
-      bookmarks?: SavedOpportunity[];
-      saved?: SavedOpportunity[];
-    }>(API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.BOOKMARKS);
+    try {
+      const res = await apiClient.get<Record<string, unknown>>(
+        API_CONFIG.ENDPOINTS.PLACEMENT_CENTER.BOOKMARKS
+      );
+      if (res && res.data) {
+        return res as ApiResponse<{
+          bookmarks?: SavedOpportunity[] | PlacementJob[];
+          saved?: SavedOpportunity[] | PlacementJob[];
+          savedJobs?: SavedOpportunity[] | PlacementJob[];
+          jobs?: PlacementJob[];
+          data?: unknown;
+        }>;
+      }
+      throw new Error("Primary bookmarks endpoint returned empty data");
+    } catch (err) {
+      logger.warn("PLACEMENT_API", "Primary bookmarks route failed, attempting /api/placement/jobs/saved fallback", err);
+      try {
+        const fallbackRes = await apiClient.get<Record<string, unknown>>(
+          "/api/placement/jobs/saved"
+        );
+        return fallbackRes as ApiResponse<{
+          bookmarks?: SavedOpportunity[] | PlacementJob[];
+          saved?: SavedOpportunity[] | PlacementJob[];
+          savedJobs?: SavedOpportunity[] | PlacementJob[];
+          jobs?: PlacementJob[];
+          data?: unknown;
+        }>;
+      } catch (fallbackErr) {
+        logger.warn("PLACEMENT_API", "Fallback saved jobs route also failed", fallbackErr);
+        throw err;
+      }
+    }
   },
 
   /**

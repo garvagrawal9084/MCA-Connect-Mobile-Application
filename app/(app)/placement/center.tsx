@@ -31,6 +31,7 @@ import { PlacementJobDetailModal } from "@/components/placement/PlacementJobDeta
 import {
   usePlacementCenterStore,
   PlacementFilterTab,
+  normalizeSavedJobItem,
 } from "@/features/placement/store";
 import { useNotificationsStore } from "@/features/notifications/store";
 import { PlacementJob, JobApplication, InterviewExperience } from "@/features/placement/types";
@@ -50,6 +51,7 @@ export default function PlacementCenterScreen() {
   const isLoadingClosingSoon = usePlacementCenterStore((state) => state.isLoadingClosingSoon);
   const applications = usePlacementCenterStore((state) => state.applications);
   const bookmarks = usePlacementCenterStore((state) => state.bookmarks);
+  const isLoadingBookmarks = usePlacementCenterStore((state) => state.isLoadingBookmarks);
   const experiences = usePlacementCenterStore((state) => state.experiences);
   const selectedJob = usePlacementCenterStore((state) => state.selectedJob);
 
@@ -176,19 +178,48 @@ export default function PlacementCenterScreen() {
     );
   });
 
-  // Filter bookmarks by search
-  const savedJobItems: PlacementJob[] = bookmarks
-    .map((b) => (typeof b.job === "object" ? b.job : null))
-    .filter((j): j is PlacementJob => j !== null)
-    .filter((j) => {
-      if (!localSearch.trim()) return true;
-      const q = localSearch.toLowerCase();
-      return (
+  // Normalize and resolve bookmarks from server list + in-memory saved jobs
+  const savedJobItems: PlacementJob[] = (() => {
+    const knownJobs = [...jobs, ...closingSoonJobs];
+    const savedMap = new Map<string, PlacementJob>();
+
+    // 1. Process server bookmarks
+    bookmarks.forEach((b) => {
+      const normalized = normalizeSavedJobItem(b, knownJobs);
+      if (normalized) {
+        savedMap.set(normalized._id, normalized);
+      }
+    });
+
+    // 2. Merge jobs marked as saved in memory
+    knownJobs.forEach((job) => {
+      if (job.userState?.saved && !savedMap.has(job._id)) {
+        savedMap.set(job._id, {
+          ...job,
+          userState: {
+            ...job.userState,
+            applied: job.userState?.applied || false,
+            applicationStatus: job.userState?.applicationStatus || null,
+            saved: true,
+            collectionId: job.userState?.collectionId || null,
+            reminder: job.userState?.reminder || false,
+            reminderAt: job.userState?.reminderAt || null,
+          },
+        });
+      }
+    });
+
+    const allSaved = Array.from(savedMap.values());
+    if (!localSearch.trim()) return allSaved;
+
+    const q = localSearch.toLowerCase();
+    return allSaved.filter(
+      (j) =>
         j.title.toLowerCase().includes(q) ||
         j.companyName.toLowerCase().includes(q) ||
         (j.location && j.location.toLowerCase().includes(q))
-      );
-    });
+    );
+  })();
 
   // Filter applications by search
   const filteredApplications = applications.filter((app) => {
@@ -503,7 +534,14 @@ export default function PlacementCenterScreen() {
               </Text>
             </View>
 
-            {savedJobItems.length === 0 ? (
+            {isLoadingBookmarks && savedJobItems.length === 0 ? (
+              <View className="py-12 items-center justify-center">
+                <ActivityIndicator size="small" color="#D97706" />
+                <Text className="text-xs text-slate-400 mt-2 font-medium">
+                  Loading your saved opportunities...
+                </Text>
+              </View>
+            ) : savedJobItems.length === 0 ? (
               <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-8 items-center justify-center my-2">
                 <View className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 items-center justify-center mb-3">
                   <Ionicons name="bookmark-outline" size={26} color="#D97706" />
@@ -516,6 +554,16 @@ export default function PlacementCenterScreen() {
                 <Text className="text-xs text-slate-400 text-center mt-1">
                   Bookmark jobs you are interested in to keep track of them here.
                 </Text>
+                {localSearch.trim() ? (
+                  <TouchableOpacity
+                    onPress={handleClearSearch}
+                    className="mt-4 bg-[#8B0000] px-4 py-2 rounded-xl"
+                  >
+                    <Text className="text-xs font-bold text-white">
+                      Clear Search
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             ) : (
               savedJobItems.map((job, idx) => (
@@ -523,7 +571,15 @@ export default function PlacementCenterScreen() {
                   key={job._id || `saved-${idx}`}
                   job={{
                     ...job,
-                    userState: { ...job.userState, saved: true, applied: job.userState?.applied || false, applicationStatus: job.userState?.applicationStatus || null, collectionId: null, reminder: job.userState?.reminder || false, reminderAt: null },
+                    userState: {
+                      ...job.userState,
+                      saved: true,
+                      applied: job.userState?.applied || false,
+                      applicationStatus: job.userState?.applicationStatus || null,
+                      collectionId: null,
+                      reminder: job.userState?.reminder || false,
+                      reminderAt: null,
+                    },
                   }}
                   delay={80 + idx * 30}
                   onPress={() => handleJobCardPress(job)}
