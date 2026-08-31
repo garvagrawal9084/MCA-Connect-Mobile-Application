@@ -65,14 +65,12 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "97969023-a829-43e7-8bf0-00ad4847726a"
+        "projectId": "baa6a3b3-ad4b-4b49-a295-f3986ff84101"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/97969023-a829-43e7-8bf0-00ad4847726a"
-    }
+    "owner": "scis-connect"
   }
 }

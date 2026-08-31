@@ -13,7 +13,7 @@ import { apiClient } from "@/services/api";
 import { storageService } from "@/services/storage";
 import { notificationsApi } from "@/features/notifications/api";
 
-const EAS_PROJECT_ID = "97969023-a829-43e7-8bf0-00ad4847726a";
+const EAS_PROJECT_ID = "baa6a3b3-ad4b-4b49-a295-f3986ff84101";
 
 /** Mask a push token for logging: first 12 + "..." + last 6 chars. Never log the full token. */
 function maskPushToken(token: string): string {
