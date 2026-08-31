@@ -3,6 +3,7 @@
  */
 
 import { apiClient, ApiResponse } from "@/services/api";
+import { API_CONFIG } from "@/constants/config";
 import { logger } from "@/utils/logger";
 import { NotificationItem } from "./types";
 
@@ -123,7 +124,53 @@ export const notificationsApi = {
    * Endpoint: DELETE /api/notifications/:id
    */
   async deleteNotification(id: string): Promise<ApiResponse<unknown>> {
+    if (!id) return { success: false, message: "Invalid notification ID" };
     logger.info("NOTIFICATIONS_API", `Deleting notification: ${id}`);
-    return apiClient.delete(`/api/notifications/${id}`);
+    return apiClient.delete(API_CONFIG.ENDPOINTS.NOTIFICATIONS.DELETE(id));
+  },
+
+  /**
+   * Register device push token with backend
+   * Endpoint: POST /api/notifications/register-device (alias: /api/notifications/push-token)
+   */
+  async registerDevice(payload: {
+    pushToken: string;
+    platform?: string;
+    deviceModel?: string;
+  }): Promise<ApiResponse<{ registeredDevices?: number }>> {
+    if (!payload?.pushToken) {
+      return { success: false, message: "Invalid push token" };
+    }
+    logger.info("NOTIFICATIONS_API", "Registering device push token with backend", {
+      platform: payload.platform,
+      deviceModel: payload.deviceModel,
+    });
+
+    try {
+      return await apiClient.post<{ registeredDevices?: number }>(
+        API_CONFIG.ENDPOINTS.NOTIFICATIONS.REGISTER_DEVICE,
+        payload
+      );
+    } catch (err) {
+      logger.warn("NOTIFICATIONS_API", "Primary register-device failed, attempting alias /push-token", err);
+      return apiClient.post<{ registeredDevices?: number }>(
+        API_CONFIG.ENDPOINTS.NOTIFICATIONS.PUSH_TOKEN,
+        payload
+      );
+    }
+  },
+
+  /**
+   * Unregister device push token with backend
+   * Endpoint: POST /api/notifications/unregister-device
+   */
+  async unregisterDevice(pushToken: string): Promise<ApiResponse<unknown>> {
+    if (!pushToken) {
+      return { success: false, message: "Invalid push token" };
+    }
+    logger.info("NOTIFICATIONS_API", "Unregistering device push token with backend");
+    return apiClient.post(API_CONFIG.ENDPOINTS.NOTIFICATIONS.UNREGISTER_DEVICE, {
+      pushToken,
+    });
   },
 };

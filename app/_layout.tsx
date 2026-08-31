@@ -84,7 +84,8 @@ export default function RootLayout() {
       }
     }, 15000);
 
-    // 4. Listener for when a user interacts with / taps a system bar notification
+    // 4. Resolve notification taps from both the current payload shape and
+    // older nested payloads, while counting each response only once.
     const handledResponseIds = new Set<string>();
     const handleNotificationResponse = async (response: Notifications.NotificationResponse) => {
       const responseId = response.notification.request.identifier;
@@ -93,33 +94,36 @@ export default function RootLayout() {
 
       try {
         const data = response.notification.request.content.data as Record<string, unknown> | undefined;
-        logger.info("NOTIFICATIONS", "Notification tapped in system bar", data);
-
+        if (!data) return;
+        logger.info("NOTIFICATIONS", "Handling notification tap response with payload", data);
         recordRemotePushEvent(data, "opened").catch(() => {});
 
-        if (!data) return;
+        const nestedData = (typeof data.data === "object" && data.data !== null)
+          ? (data.data as Record<string, unknown>)
+          : undefined;
+        const rawJobId = data.jobId || nestedData?.jobId;
+        const jobId = typeof rawJobId === "string" && rawJobId.trim().length > 0
+          ? rawJobId.trim()
+          : undefined;
 
-        // If notification contains a jobId, open Placement Center with that job
-        if (data.jobId && typeof data.jobId === "string") {
+        if (jobId) {
           const fetchJobDetail = usePlacementCenterStore.getState().fetchJobDetail;
           const setSelectedJob = usePlacementCenterStore.getState().setSelectedJob;
-
-          // Attempt to load and set selected job for the modal
           try {
-            const job = await fetchJobDetail(data.jobId);
+            const job = await fetchJobDetail(jobId);
             if (job) setSelectedJob(job);
-          } catch {
-            // Best-effort
+          } catch (err) {
+            logger.warn("NOTIFICATIONS", `Failed to pre-fetch job ${jobId} on notification tap`, err);
           }
-
           router.push("/(app)/placement/center" as never);
           return;
         }
 
-        // Otherwise route to the target screen if specified
-        if (data.screen && typeof data.screen === "string") {
-          router.push(data.screen as never);
-        }
+        const rawScreen = data.screen || nestedData?.screen;
+        const targetScreen = typeof rawScreen === "string" && rawScreen.trim().length > 0
+          ? rawScreen.trim()
+          : undefined;
+        if (targetScreen) router.push(targetScreen as never);
       } catch (err) {
         logger.error("NOTIFICATIONS", "Error handling notification tap response", err);
       }

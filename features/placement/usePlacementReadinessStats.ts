@@ -220,10 +220,15 @@ export function usePlacementReadinessStats(): PlacementReadinessStats {
       const avgPercentage = totalPercentage / results.length;
       score += Math.round((avgPercentage / 100) * 45);
     } else {
-      // Baseline academic performance weight if no mock tests taken yet
-      const graduationCgpa = user?.education?.graduation?.cgpa || 8.0;
-      const baselineAcademic = Math.min(30, Math.round((graduationCgpa / 10) * 35));
-      score += baselineAcademic;
+      // Baseline academic performance weight if no mock tests taken yet (uses real student CGPA only)
+      const studentCgpa =
+        user?.education?.postGraduation?.cgpa ||
+        user?.education?.graduation?.cgpa ||
+        0;
+      if (studentCgpa > 0) {
+        const baselineAcademic = Math.min(30, Math.round((studentCgpa / 10) * 35));
+        score += baselineAcademic;
+      }
     }
 
     // C. Coding Challenges & Practice (Up to 20%)

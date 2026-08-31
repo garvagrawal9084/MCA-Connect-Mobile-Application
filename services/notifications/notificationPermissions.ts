@@ -11,6 +11,7 @@ import { NOTIFICATION_CHANNELS } from "./channels";
 import { logger } from "@/utils/logger";
 import { apiClient } from "@/services/api";
 import { storageService } from "@/services/storage";
+import { notificationsApi } from "@/features/notifications/api";
 
 const EAS_PROJECT_ID = "97969023-a829-43e7-8bf0-00ad4847726a";
 
@@ -199,7 +200,6 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     // 3. Obtain the Expo push token in a standalone/development build.
-    // The backend sends through Expo and intentionally does not accept raw FCM tokens.
     try {
       const projectId =
         Constants.expoConfig?.extra?.eas?.projectId ??
@@ -208,15 +208,30 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       const token = pushTokenData.data;
+
+      if (!token || (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken["))) {
+        logger.warn("NOTIFICATIONS", `Unexpected push token format received: ${token}`);
+        return null;
+      }
+
       activeExpoPushToken = token;
       await storageService.saveExpoPushToken(token);
       logger.info("NOTIFICATIONS", "Acquired Expo Push Token", {
         tokenPreview: token.substring(0, 15) + "...",
       });
 
+      // Check if user is currently authenticated with a valid Bearer token
+      const accessToken = storageService.getAccessToken();
+      if (!accessToken) {
+        logger.info(
+          "NOTIFICATIONS",
+          "Acquired Expo push token, but user is not logged in yet. Device registration will execute immediately upon login."
+        );
+        return token;
+      }
+
       // Register token with backend
       await registerTokenWithBackend(token);
-
       return token;
     } catch (tokenErr) {
       logger.warn("NOTIFICATIONS", "Remote push token not available in current environment", tokenErr);
@@ -229,24 +244,32 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 }
 
 /**
- * Synchronize the Expo token with the single authenticated backend contract.
+ * Register device push token with backend using official /api/notifications/register-device endpoint
  */
 export async function registerTokenWithBackend(token: string): Promise<boolean> {
   if (!token) return false;
+
+  const payload = {
+    pushToken: token,
+    platform: Platform.OS,
+    deviceModel: Device.modelName || Device.deviceName || "Unknown mobile device",
+  };
+
   try {
-    const res = await apiClient.post("/api/notifications/register-device", {
-      pushToken: token,
-      platform: Platform.OS,
-      deviceModel: Device.modelName || Device.deviceName || "Unknown mobile device",
-    });
-    if (res.success) {
-      logger.info("NOTIFICATIONS", "Successfully registered push token with backend");
+    const res = await notificationsApi.registerDevice(payload);
+    if (res.success || (res.statusCode && res.statusCode < 400)) {
+      logger.info("NOTIFICATIONS", "Successfully registered push token with backend", {
+        registeredDevices: res.data?.registeredDevices,
+        platform: payload.platform,
+      });
       return true;
     }
-  } catch (error) {
-    logger.warn("NOTIFICATIONS", "Could not register push token with backend", error);
+    logger.warn("NOTIFICATIONS", "Failed to register push token with backend", res);
+    return false;
+  } catch (err) {
+    logger.error("NOTIFICATIONS", "Error registering push token with backend", err);
+    return false;
   }
-  return false;
 }
 
 /** Remove this phone from the signed-in account before clearing auth state. */

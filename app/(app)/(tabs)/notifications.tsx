@@ -3,7 +3,7 @@
  * Real-time notifications with special support for placement drives & announcements.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -36,6 +37,7 @@ export default function NotificationsScreen() {
   const fetchUnreadCount = useNotificationsStore((state) => state.fetchUnreadCount);
   const markAsRead = useNotificationsStore((state) => state.markAsRead);
   const markAllAsRead = useNotificationsStore((state) => state.markAllAsRead);
+  const deleteNotification = useNotificationsStore((state) => state.deleteNotification);
 
   const fetchJobDetail = usePlacementCenterStore((state) => state.fetchJobDetail);
   const setSelectedJob = usePlacementCenterStore((state) => state.setSelectedJob);
@@ -79,6 +81,27 @@ export default function NotificationsScreen() {
   const handleMarkAllRead = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     markAllAsRead();
+  };
+
+  const handleDeleteNotification = (item: NotificationItem) => {
+    const itemId = item._id || item.id;
+    if (!itemId) return;
+
+    Alert.alert(
+      "Delete Notification",
+      "Are you sure you want to delete this notification?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            await deleteNotification(itemId);
+          },
+        },
+      ]
+    );
   };
 
   const filteredList = notifications.filter((item) => {
@@ -263,6 +286,7 @@ export default function NotificationsScreen() {
               item={item}
               delay={60 + index * 25}
               onPress={() => handleNotificationPress(item)}
+              onDelete={handleDeleteNotification}
             />
           ))
         )}
