@@ -16,6 +16,8 @@ const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
   Constants.appOwnership === "expo";
 
+let activeExpoPushToken: string | null = null;
+
 // Configure default in-app foreground notification presentation behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -72,7 +74,6 @@ export async function setupAndroidNotificationChannels(): Promise<void> {
     logger.error("NOTIFICATIONS", "Failed to setup Android notification channels", error);
   }
 }
-
 /**
  * Check current system notification permissions status
  */
@@ -195,16 +196,16 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    // 3. Obtain remote push token when running in standalone build
+    // 3. Obtain the Expo push token in a standalone/development build.
     try {
       const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ??
-        Constants?.easConfig?.projectId ??
-        "97969023-a829-43e7-8bf0-00ad4847726a";
+        Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      if (!projectId) {
+        logger.error("NOTIFICATIONS", "EAS project ID is missing; push token cannot be created");
+        return null;
+      }
 
-      const pushTokenData = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
+      const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       const token = pushTokenData.data;
 
       if (!token || (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken["))) {
@@ -212,6 +213,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
         return null;
       }
 
+      activeExpoPushToken = token;
       logger.info("NOTIFICATIONS", `Acquired Expo Push Token: ${token}`);
 
       // Check if user is currently authenticated with a valid Bearer token
@@ -246,7 +248,7 @@ export async function registerTokenWithBackend(token: string): Promise<boolean> 
   const payload = {
     pushToken: token,
     platform: Platform.OS,
-    deviceModel: Device.modelName || Device.deviceName || "Unknown Android device",
+    deviceModel: Device.modelName || Device.deviceName || "Unknown mobile device",
   };
 
   try {
@@ -263,6 +265,18 @@ export async function registerTokenWithBackend(token: string): Promise<boolean> 
   } catch (err) {
     logger.error("NOTIFICATIONS", "Error registering push token with backend", err);
     return false;
+  }
+}
+
+/** Remove this phone from the signed-in account before clearing auth state. */
+export async function unregisterPushNotificationsAsync(): Promise<void> {
+  if (!activeExpoPushToken) return;
+  try {
+    await notificationsApi.unregisterDevice(activeExpoPushToken);
+    activeExpoPushToken = null;
+    logger.info("NOTIFICATIONS", "Push token unregistered from backend");
+  } catch (error) {
+    logger.warn("NOTIFICATIONS", "Could not unregister push token", error);
   }
 }
 
@@ -304,4 +318,3 @@ export async function sendTestNotification(): Promise<string | null> {
     return null;
   }
 }
-

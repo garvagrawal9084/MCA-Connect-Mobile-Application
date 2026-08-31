@@ -8,10 +8,13 @@ import { create } from "zustand";
 import { AuthUser, LoginCredentials, LoginResponseData } from "./types";
 import { authApi } from "./api";
 import { storageService } from "@/services/storage";
-import { registerForPushNotificationsAsync } from "@/services/notifications/notificationPermissions";
 import { jobWatcher } from "@/features/placement/jobWatcher";
 import { notificationWatcher } from "@/services/notifications/notificationWatcher";
 import { logger } from "@/utils/logger";
+import {
+  registerForPushNotificationsAsync,
+  unregisterPushNotificationsAsync,
+} from "@/services/notifications/notificationPermissions";
 
 export interface AuthState {
   user: AuthUser | null;
@@ -89,6 +92,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               email: freshUser?.email,
               name: freshUser?.name,
             });
+            registerForPushNotificationsAsync().catch((pushErr) =>
+              logger.debug("AUTH_STORE", "Push registration after silent refresh deferred", pushErr)
+            );
             return true;
           }
         } catch (refreshErr) {
@@ -188,6 +194,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   logout: () => {
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
+    void unregisterPushNotificationsAsync();
     storageService.clearSession();
     jobWatcher.reset();
     notificationWatcher.reset();
@@ -218,6 +225,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
           error: null,
         });
+        void registerForPushNotificationsAsync();
         return true;
       }
       set({ isLoading: false });

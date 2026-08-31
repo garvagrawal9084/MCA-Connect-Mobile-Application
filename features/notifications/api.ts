@@ -159,4 +159,18 @@ export const notificationsApi = {
       );
     }
   },
+
+  /**
+   * Unregister device push token with backend
+   * Endpoint: POST /api/notifications/unregister-device
+   */
+  async unregisterDevice(pushToken: string): Promise<ApiResponse<unknown>> {
+    if (!pushToken) {
+      return { success: false, message: "Invalid push token" };
+    }
+    logger.info("NOTIFICATIONS_API", "Unregistering device push token with backend");
+    return apiClient.post(API_CONFIG.ENDPOINTS.NOTIFICATIONS.UNREGISTER_DEVICE, {
+      pushToken,
+    });
+  },
 };

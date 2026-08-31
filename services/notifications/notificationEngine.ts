@@ -14,10 +14,7 @@ import {
   FormattedNotification,
 } from "./types";
 import { NOTIFICATION_CHANNELS } from "./channels";
-import {
-  setupAndroidNotificationChannels,
-  registerForPushNotificationsAsync,
-} from "./notificationPermissions";
+import { setupAndroidNotificationChannels } from "./notificationPermissions";
 import { useNotificationsStore } from "@/features/notifications/store";
 import { normalizeNotification } from "@/features/notifications/types";
 import { logger } from "@/utils/logger";
@@ -36,7 +33,6 @@ class NotificationEngine {
     try {
       await setupAndroidNotificationChannels();
       await useNotificationsStore.getState().loadPreferences();
-      await registerForPushNotificationsAsync();
       this.initialized = true;
       logger.info("NOTIFICATION_ENGINE", "Notification Engine initialized successfully");
     } catch (error) {

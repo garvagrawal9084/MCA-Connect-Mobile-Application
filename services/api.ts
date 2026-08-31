@@ -8,6 +8,8 @@ import { API_CONFIG } from "@/constants/config";
 import { logger } from "@/utils/logger";
 import { storageService } from "@/services/storage";
 import type { LoginResponseData } from "@/features/auth/types";
+import { Platform } from "react-native";
+import * as Device from "expo-device";
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -69,6 +71,9 @@ class ApiClient {
     const requestHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "application/json",
+      "X-SCIS-Client": "mobile-app",
+      "X-SCIS-Platform": Platform.OS,
+      "X-SCIS-Device-Model": encodeURIComponent(Device.modelName || "Unknown mobile device"),
       ...(headers as Record<string, string>),
     };
 

@@ -253,7 +253,7 @@ export function NotificationSettingsModal({
               </View>
 
               <Text className="text-[11px] text-slate-600 dark:text-slate-400 leading-4 mb-3">
-                Test whether your device's native notification manager can display alerts when the app is completely closed.
+                Test whether your device&apos;s native notification manager can display alerts when the app is completely closed.
               </Text>
 
               <TouchableOpacity

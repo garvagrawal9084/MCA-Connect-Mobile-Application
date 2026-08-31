@@ -53,6 +53,7 @@
         {
           "icon": "./assets/images/logo.png",
           "color": "#8B0000",
+          "defaultChannel": "placement-jobs",
           "sounds": []
         }
       ],
