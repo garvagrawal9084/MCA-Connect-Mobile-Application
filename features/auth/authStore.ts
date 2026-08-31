@@ -1,4 +1,4 @@
-`/**
+/**
  * SCIS Connect Mobile - Global Authentication Store (Zustand)
  * Provides reactive client-side authentication state and lifecycle methods.
  * Adheres strictly to the architectural standards in app/AGENTS.md.
@@ -8,6 +8,8 @@ import { create } from "zustand";
 import { AuthUser, LoginCredentials, LoginResponseData } from "./types";
 import { authApi } from "./api";
 import { storageService } from "@/services/storage";
+import { jobWatcher } from "@/features/placement/jobWatcher";
+import { notificationWatcher } from "@/services/notifications/notificationWatcher";
 import { logger } from "@/utils/logger";
 import {
   registerForPushNotificationsAsync,
@@ -90,7 +92,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               email: freshUser?.email,
               name: freshUser?.name,
             });
-            void registerForPushNotificationsAsync();
+            registerForPushNotificationsAsync().catch((pushErr) =>
+              logger.debug("AUTH_STORE", "Push registration after silent refresh deferred", pushErr)
+            );
             return true;
           }
         } catch (refreshErr) {
@@ -120,7 +124,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         rememberMe: isRememberMe,
       });
 
-      if (hasValidSession) void registerForPushNotificationsAsync();
+      // Synchronize push token with authenticated session in background
+      if (hasValidSession) {
+        registerForPushNotificationsAsync().catch((e) =>
+          logger.debug("AUTH_STORE", "Push registration after bootstrap deferred", e)
+        );
+      }
 
       return hasValidSession;
     } catch (err) {
@@ -167,7 +176,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         rememberMe: credentials.rememberMe,
       });
 
-      void registerForPushNotificationsAsync();
+      // Synchronize push token with backend for authenticated student
+      registerForPushNotificationsAsync().catch((pushErr) => {
+        logger.debug("AUTH_STORE", "Background push token sync after login deferred", pushErr);
+      });
 
       return data;
     } catch (err: unknown) {
@@ -184,6 +196,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
     void unregisterPushNotificationsAsync();
     storageService.clearSession();
+    jobWatcher.reset();
+    notificationWatcher.reset();
     set({
       user: null,
       accessToken: null,

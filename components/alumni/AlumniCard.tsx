@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { AlumniUser } from "@/features/alumni/types";
@@ -24,6 +24,17 @@ export const AlumniCard: React.FC<AlumniCardProps> = ({ alumni, onPress }) => {
         .slice(0, 2)
     : "??";
 
+  const getPhotoUrl = (): string | null => {
+    const img = alumni.profileImage as unknown;
+    if (!img) return null;
+    if (typeof img === "string") return img;
+    if (typeof img === "object" && img !== null && "url" in img) {
+      return (img as { url?: string }).url || null;
+    }
+    return null;
+  };
+  const photoUrl = getPhotoUrl();
+
   return (
     <TouchableOpacity
       onPress={handlePress}
@@ -31,12 +42,8 @@ export const AlumniCard: React.FC<AlumniCardProps> = ({ alumni, onPress }) => {
       className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 mb-3 shadow-xs"
     >
       <View className="flex-row items-center">
-        {alumni.profileImage?.url ? (
-          <View className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/40 items-center justify-center mr-3">
-            <Text className="text-sm font-bold text-red-700 dark:text-red-300">
-              {initials}
-            </Text>
-          </View>
+        {photoUrl ? (
+          <Image source={{ uri: photoUrl }} className="w-12 h-12 rounded-full mr-3" />
         ) : (
           <View className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/40 items-center justify-center mr-3">
             <Text className="text-sm font-bold text-red-700 dark:text-red-300">
@@ -46,12 +53,12 @@ export const AlumniCard: React.FC<AlumniCardProps> = ({ alumni, onPress }) => {
         )}
 
         <View className="flex-1">
-          <View className="flex-row items-center">
-            <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={1}>
+          <View className="flex-row items-center justify-between gap-1.5">
+            <Text className="text-sm font-bold text-slate-900 dark:text-white flex-1" numberOfLines={1}>
               {alumni.name}
             </Text>
             {alumni.communityStatus && (
-              <View className="bg-red-50 dark:bg-red-950/60 border border-red-200/80 dark:border-red-800/80 px-2 py-0.5 rounded-full ml-2">
+              <View className="bg-red-50 dark:bg-red-950/60 border border-red-200/80 dark:border-red-800/80 px-2 py-0.5 rounded-full shrink-0">
                 <Text className="text-[10px] font-semibold text-red-700 dark:text-red-300">
                   {alumni.communityStatus}
                 </Text>

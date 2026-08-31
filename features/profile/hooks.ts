@@ -40,8 +40,12 @@ export function useProfile() {
     try {
       logger.info("PROFILE_HOOK", "Initiating profile fetch from /api/auth/me...");
       const response = await profileApi.getProfile();
-      if (response.data?.user) {
-        setProfile(response.data.user);
+      if (response.data) {
+        const raw = response.data as unknown as Record<string, unknown>;
+        const userObj = (raw.user || raw.student || raw.data || raw) as UserProfile;
+        if (userObj && (userObj.name || userObj.email || userObj.id || userObj._id)) {
+          setProfile(userObj);
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load profile data";

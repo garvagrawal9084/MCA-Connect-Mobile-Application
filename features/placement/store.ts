@@ -240,7 +240,7 @@ export const usePlacementCenterStore = create<PlacementCenterState>(
         const jobs = rawJobs.filter((j) => j.hiddenFromUsers !== true);
         const total = res.data?.pagination?.total || jobs.length;
 
-        // Inspect and trigger system notification bar alerts for new jobs
+        // Inspect fetched jobs and notify for newly discovered opportunities
         jobWatcher.inspectAndNotifyNewJobs(jobs);
 
         set({

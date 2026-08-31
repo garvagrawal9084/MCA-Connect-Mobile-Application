@@ -31,6 +31,10 @@ export function Avatar({
 }: AvatarProps) {
   const [hasError, setHasError] = useState(false);
 
+  React.useEffect(() => {
+    setHasError(false);
+  }, [uri]);
+
   const initial = name?.trim() ? name.trim().charAt(0).toUpperCase() : "S";
   const fontSize = Math.round(size * 0.4);
   const statusSize = Math.max(10, Math.round(size * 0.22));

@@ -153,6 +153,14 @@ export default function CommunityScreen() {
                   topic={topic}
                   onLike={() => toggleLike(topic._id)}
                   onPress={() => router.push({ pathname: "/(app)/alumni/topic", params: { id: topic._id } })}
+                  onAuthorPress={() => {
+                    if (topic.author) {
+                      router.push({
+                        pathname: "/(app)/alumni/profile",
+                        params: { data: JSON.stringify(topic.author) },
+                      } as never);
+                    }
+                  }}
                 />
               ))}
 

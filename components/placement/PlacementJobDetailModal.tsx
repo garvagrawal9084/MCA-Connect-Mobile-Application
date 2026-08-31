@@ -20,9 +20,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
 import { PlacementJob } from "@/features/placement/types";
 import { usePlacementCenterStore } from "@/features/placement/store";
 import { useAuthStore } from "@/features/auth/authStore";
+import { useNotificationsStore } from "@/features/notifications/store";
+import { notificationEngine } from "@/services/notifications";
 import { placementCenterApi } from "@/features/placement/api";
 import { openExternalUrl, formatExternalUrl } from "@/utils/url";
 import { logger } from "@/utils/logger";
@@ -212,6 +215,55 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
     setShowReminderPicker(false);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      const company =
+        job.companyName ||
+        (typeof job.company === "object" ? job.company?.name : job.company) ||
+        "Campus Placement";
+
+      // Calculate delay in seconds for local scheduling if in future
+      const nowMs = Date.now();
+      const remindMs = remindDate.getTime();
+      const delaySec = Math.floor((remindMs - nowMs) / 1000);
+
+      // 1. Trigger immediate confirmation alert and in-app banner
+      await notificationEngine.trigger(
+        "APPLICATION_DEADLINE",
+        {
+          jobId: job._id,
+          jobTitle: job.title || "Job Opportunity",
+          companyName: company,
+          hoursRemaining: hoursBefore,
+        },
+        {
+          force: true,
+        }
+      );
+
+      // 2. Schedule OS notification for future deadline alert if in future
+      if (delaySec > 5 && delaySec < 86400 * 30) {
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: `⏰ Deadline Alert: ${job.title || "Job Opportunity"}`,
+            body: `Application deadline in ${hoursBefore}h for ${company}. Tap to apply now.`,
+            sound: "default",
+            color: "#7C3AED",
+            data: {
+              type: "JOB_DEADLINE_REMINDER",
+              jobId: job._id,
+              screen: "/(app)/placement/center",
+            },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: delaySec,
+          },
+        }).catch(() => {});
+      }
+
+      useNotificationsStore.getState().fetchNotifications().catch(() => {});
+      useNotificationsStore.getState().fetchUnreadCount().catch(() => {});
+
       Alert.alert(
         "Reminder Scheduled",
         `You will be alerted before deadline on ${remindDate.toLocaleDateString()}`
@@ -233,9 +285,37 @@ export const PlacementJobDetailModal: React.FC<PlacementJobDetailModalProps> = (
             setIsSendingNotice(true);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             try {
-              const res = await placementCenterApi.sendJobNotifications(job._id);
+              const res = await placementCenterApi.sendJobNotifications(job._id, {
+                sendEmail: true,
+                sendWeb: true,
+              });
               setIsSendingNotice(false);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+              const company =
+                job.companyName ||
+                (typeof job.company === "object" ? job.company?.name : job.company) ||
+                "Campus Placement";
+
+              await notificationEngine.trigger(
+                "JOB_POSTED",
+                {
+                  jobId: job._id,
+                  jobTitle: job.title || "Software Opportunity",
+                  companyName: company,
+                  package: job.package,
+                  stipend: job.stipend,
+                  jobType: job.jobType,
+                  location: job.location,
+                  deadline: job.applicationDeadline,
+                  link: job.officialLink || job.applyUrl || job.careersPage,
+                },
+                { force: true }
+              );
+
+              useNotificationsStore.getState().fetchNotifications().catch(() => {});
+              useNotificationsStore.getState().fetchUnreadCount().catch(() => {});
+
               Alert.alert(
                 "Notifications Sent! 📢",
                 `Successfully notified eligible students (notified: ${

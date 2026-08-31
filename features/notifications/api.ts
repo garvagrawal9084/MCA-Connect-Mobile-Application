@@ -14,8 +14,12 @@ export const notificationsApi = {
   async getNotifications(params?: { page?: number; limit?: number; unreadOnly?: boolean }): Promise<
     ApiResponse<{ notifications?: NotificationItem[]; unreadCount?: number; count?: number; data?: NotificationItem[] } | NotificationItem[]>
   > {
-    const qs = params?.unreadOnly ? "?unreadOnly=true" : "";
-    logger.info("NOTIFICATIONS_API", "Fetching notifications list");
+    const queryParts: string[] = [];
+    if (params?.limit) queryParts.push(`limit=${params.limit}`);
+    if (params?.page) queryParts.push(`page=${params.page}`);
+    if (params?.unreadOnly) queryParts.push("unreadOnly=true");
+    const qs = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+    logger.info("NOTIFICATIONS_API", `Fetching notifications list with query: ${qs || "(none)"}`);
     return apiClient.get(`/api/notifications${qs}`);
   },
 

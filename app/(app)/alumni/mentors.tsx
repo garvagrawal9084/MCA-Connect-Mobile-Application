@@ -146,6 +146,12 @@ export default function MentorsScreen() {
                   key={mentor._id}
                   mentor={mentor}
                   onRequestMentorship={() => handleRequestMentorship(mentor)}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(app)/alumni/profile",
+                      params: { data: JSON.stringify(mentor) },
+                    } as never)
+                  }
                 />
               ))}
 

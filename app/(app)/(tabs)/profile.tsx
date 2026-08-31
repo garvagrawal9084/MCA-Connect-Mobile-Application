@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,14 +10,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
+import { NotificationSettingsModal } from "@/components/notifications/NotificationSettingsModal";
 import { useAuthStore } from "@/features/auth/authStore";
+import { useNotificationsStore } from "@/features/notifications/store";
 import { useProfile } from "@/features/profile/hooks";
 import { logger } from "@/utils/logger";
 
@@ -26,6 +28,20 @@ export default function ProfileScreen() {
   const logout = useAuthStore((state) => state.logout);
   const { profile, isRefreshing, refreshProfile } = useProfile();
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const masterNotificationsEnabled = useNotificationsStore(
+    (state) => state.masterNotificationsEnabled
+  );
+  const systemPermissionStatus = useNotificationsStore(
+    (state) => state.systemPermissionStatus
+  );
+
+  // Automatically refresh profile whenever screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      refreshProfile();
+    }, [refreshProfile])
+  );
 
   const handleLogout = () => {
     Alert.alert(
@@ -68,14 +84,17 @@ export default function ProfileScreen() {
     }
   };
 
-  // Safe data access
+  // Safe, defensive data access
   const profileImage =
     profile?.profileImage || profile?.avatar || profile?.avatarUrl;
   const name = profile?.name || "Student";
   const rollNo = profile?.roll_no || profile?.studentId;
   const programTitle =
-    profile?.program?.name ||
-    profile?.program?.code ||
+    (typeof profile?.program === "object" && profile?.program !== null
+      ? profile.program.name || profile.program.code
+      : typeof profile?.program === "string"
+      ? profile.program
+      : null) ||
     profile?.course ||
     (profile?.education?.postGraduation?.degree
       ? `${profile.education.postGraduation.degree} · ${profile.education.postGraduation.collegeName || "SCIS"}`
@@ -85,16 +104,20 @@ export default function ProfileScreen() {
   const cgpa =
     profile?.education?.postGraduation?.cgpa ||
     profile?.education?.graduation?.cgpa;
-  const leetcode = profile?.leetcode_profiles?.[0];
-  const projects = profile?.projects || [];
-  const skills = profile?.skills || [];
-  const resumes = profile?.resumes || [];
+  const leetcode = Array.isArray(profile?.leetcode_profiles)
+    ? profile.leetcode_profiles[0]
+    : typeof profile?.leetcode_profiles === "object" && profile?.leetcode_profiles !== null
+    ? (profile.leetcode_profiles as any)
+    : null;
+  const projects = Array.isArray(profile?.projects) ? profile.projects : [];
+  const skills = Array.isArray(profile?.skills) ? profile.skills : [];
+  const resumes = Array.isArray(profile?.resumes) ? profile.resumes : [];
   const education = profile?.education;
-  const sgpaList = profile?.sgpa || [];
+  const sgpaList = Array.isArray(profile?.sgpa) ? profile.sgpa : [];
 
   const hasHighlights = Boolean(
     (cgpa !== undefined && cgpa !== null) ||
-    leetcode?.totalSolved !== undefined ||
+    (leetcode && leetcode.totalSolved !== undefined) ||
     projects.length > 0 ||
     skills.length > 0
   );
@@ -128,11 +151,11 @@ export default function ProfileScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F8FAFC] dark:bg-slate-950 px-5 pt-3">
+    <SafeAreaView className="flex-1 bg-[#F8FAFC] dark:bg-slate-950 px-5 pt-3" edges={["top", "left", "right"]}>
       <StatusBar style="auto" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 130 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -461,10 +484,10 @@ export default function ProfileScreen() {
                     className="flex-row items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
                     activeOpacity={0.7}
                   >
-                    <View className="flex-row items-center flex-1 mr-2">
+                    <View className="flex-row items-center flex-1 mr-2 min-w-0">
                       <Ionicons name="logo-github" size={18} color="#1E293B" />
-                      <View className="ml-2.5 flex-1">
-                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <View className="ml-2.5 flex-1 min-w-0">
+                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
                           GitHub
                         </Text>
                         <Text
@@ -485,10 +508,10 @@ export default function ProfileScreen() {
                     className="flex-row items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
                     activeOpacity={0.7}
                   >
-                    <View className="flex-row items-center flex-1 mr-2">
+                    <View className="flex-row items-center flex-1 mr-2 min-w-0">
                       <Ionicons name="logo-linkedin" size={18} color="#0A66C2" />
-                      <View className="ml-2.5 flex-1">
-                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <View className="ml-2.5 flex-1 min-w-0">
+                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
                           LinkedIn
                         </Text>
                         <Text
@@ -511,13 +534,13 @@ export default function ProfileScreen() {
                     className="flex-row items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
                     activeOpacity={0.7}
                   >
-                    <View className="flex-row items-center flex-1 mr-2">
+                    <View className="flex-row items-center flex-1 mr-2 min-w-0">
                       <Ionicons name="code-working-outline" size={18} color="#F59E0B" />
-                      <View className="ml-2.5 flex-1">
-                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <View className="ml-2.5 flex-1 min-w-0">
+                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
                           LeetCode ({leetcode.totalSolved} solved)
                         </Text>
-                        <Text className="text-[10px] text-slate-500 font-mono">
+                        <Text className="text-[10px] text-slate-500 font-mono" numberOfLines={1}>
                           @{leetcode.username}
                         </Text>
                       </View>
@@ -532,10 +555,10 @@ export default function ProfileScreen() {
                     className="flex-row items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
                     activeOpacity={0.7}
                   >
-                    <View className="flex-row items-center flex-1 mr-2">
+                    <View className="flex-row items-center flex-1 mr-2 min-w-0">
                       <Ionicons name="terminal-outline" size={18} color="#10B981" />
-                      <View className="ml-2.5 flex-1">
-                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <View className="ml-2.5 flex-1 min-w-0">
+                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
                           GeeksforGeeks
                         </Text>
                         <Text
@@ -556,10 +579,10 @@ export default function ProfileScreen() {
                     className="flex-row items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
                     activeOpacity={0.7}
                   >
-                    <View className="flex-row items-center flex-1 mr-2">
+                    <View className="flex-row items-center flex-1 mr-2 min-w-0">
                       <Ionicons name="trophy-outline" size={18} color="#EF4444" />
-                      <View className="ml-2.5 flex-1">
-                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <View className="ml-2.5 flex-1 min-w-0">
+                        <Text className="text-xs font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
                           Codeforces
                         </Text>
                         <Text
@@ -596,24 +619,32 @@ export default function ProfileScreen() {
                 {/* Post Graduation */}
                 {education.postGraduation?.degree && (
                   <View className="p-3 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-100 dark:border-red-900/40">
-                    <View className="flex-row justify-between items-center">
-                      <Text className="text-xs font-black text-red-900 dark:text-red-300">
+                    <View className="flex-row justify-between items-start gap-2">
+                      <Text className="text-xs font-black text-red-900 dark:text-red-300 flex-1 leading-4">
                         {education.postGraduation.degree} · Post Graduation
                       </Text>
                       {education.postGraduation.cgpa && (
-                        <Text className="text-xs font-extrabold text-red-800 dark:text-red-400">
-                          CGPA: {education.postGraduation.cgpa}
-                        </Text>
+                        <View className="bg-red-100/80 dark:bg-red-900/60 px-2 py-0.5 rounded shrink-0">
+                          <Text className="text-xs font-black text-red-800 dark:text-red-300">
+                            CGPA: {education.postGraduation.cgpa}
+                          </Text>
+                        </View>
                       )}
                     </View>
-                    <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1">
-                      {education.postGraduation.collegeName} (
-                      {education.postGraduation.university})
-                    </Text>
+                    {(education.postGraduation.collegeName || education.postGraduation.university) && (
+                      <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1.5 leading-4">
+                        {education.postGraduation.collegeName}
+                        {education.postGraduation.university &&
+                        education.postGraduation.university.trim().toLowerCase() !==
+                          (education.postGraduation.collegeName || "").trim().toLowerCase()
+                          ? ` (${education.postGraduation.university})`
+                          : ""}
+                      </Text>
+                    )}
 
                     {/* SGPA semester pills */}
                     {sgpaList.length > 0 && (
-                      <View className="flex-row flex-wrap gap-1.5 mt-2 pt-2 border-t border-red-200/60 dark:border-red-900/60">
+                      <View className="flex-row flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-red-200/60 dark:border-red-900/60">
                         {sgpaList.map((item) => (
                           <View
                             key={item._id || item.sem}
@@ -635,21 +666,29 @@ export default function ProfileScreen() {
                 {/* Graduation */}
                 {education.graduation?.degree && (
                   <View className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                    <View className="flex-row justify-between items-center">
-                      <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {education.graduation.degree} · Graduation (
-                        {education.graduation.passingYear})
+                    <View className="flex-row justify-between items-start gap-2">
+                      <Text className="text-xs font-bold text-slate-800 dark:text-slate-200 flex-1 leading-4">
+                        {education.graduation.degree} · Graduation
+                        {education.graduation.passingYear ? ` (${education.graduation.passingYear})` : ""}
                       </Text>
                       {education.graduation.cgpa && (
-                        <Text className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                          CGPA: {education.graduation.cgpa}
-                        </Text>
+                        <View className="bg-slate-200/80 dark:bg-slate-800 px-2 py-0.5 rounded shrink-0">
+                          <Text className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            CGPA: {education.graduation.cgpa}
+                          </Text>
+                        </View>
                       )}
                     </View>
-                    <Text className="text-xs text-slate-500 mt-0.5">
-                      {education.graduation.collegeName} ·{" "}
-                      {education.graduation.university}
-                    </Text>
+                    {(education.graduation.collegeName || education.graduation.university) && (
+                      <Text className="text-xs text-slate-500 mt-1.5 leading-4">
+                        {education.graduation.collegeName}
+                        {education.graduation.university &&
+                        education.graduation.university.trim().toLowerCase() !==
+                          (education.graduation.collegeName || "").trim().toLowerCase()
+                          ? ` · ${education.graduation.university}`
+                          : ""}
+                      </Text>
+                    )}
                   </View>
                 )}
 
@@ -657,15 +696,15 @@ export default function ProfileScreen() {
                 <View className="flex-row gap-2">
                   {education.twelfth?.schoolName && (
                     <View className="flex-1 p-2.5 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                      <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300" numberOfLines={1}>
                         12th ({education.twelfth.passingYear})
                       </Text>
                       <Text className="text-[11px] font-black text-slate-900 dark:text-white mt-0.5">
                         {education.twelfth.percentage}%
                       </Text>
                       <Text
-                        numberOfLines={1}
-                        className="text-[10px] text-slate-500 mt-0.5"
+                        numberOfLines={2}
+                        className="text-[10px] text-slate-500 mt-0.5 leading-tight"
                       >
                         {education.twelfth.schoolName}
                       </Text>
@@ -674,15 +713,15 @@ export default function ProfileScreen() {
 
                   {education.tenth?.schoolName && (
                     <View className="flex-1 p-2.5 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                      <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300" numberOfLines={1}>
                         10th ({education.tenth.passingYear})
                       </Text>
                       <Text className="text-[11px] font-black text-slate-900 dark:text-white mt-0.5">
                         {education.tenth.percentage}%
                       </Text>
                       <Text
-                        numberOfLines={1}
-                        className="text-[10px] text-slate-500 mt-0.5"
+                        numberOfLines={2}
+                        className="text-[10px] text-slate-500 mt-0.5 leading-tight"
                       >
                         {education.tenth.schoolName}
                       </Text>
@@ -716,10 +755,10 @@ export default function ProfileScreen() {
                     className="flex-row items-center justify-between p-3 rounded-lg bg-red-50/60 dark:bg-red-950/30 border border-red-200/80 dark:border-red-900/50"
                     activeOpacity={0.7}
                   >
-                    <View className="flex-row items-center flex-1 mr-2">
+                    <View className="flex-row items-center flex-1 mr-2 min-w-0">
                       <Ionicons name="document-attach" size={18} color="#8B0000" />
-                      <View className="ml-2.5 flex-1">
-                        <Text className="text-xs font-bold text-red-950 dark:text-red-200">
+                      <View className="ml-2.5 flex-1 min-w-0">
+                        <Text className="text-xs font-bold text-red-950 dark:text-red-200" numberOfLines={1}>
                           {resume.title || "Student Resume"}
                           {resume.isPrimary && " (Primary)"}
                         </Text>
@@ -738,9 +777,9 @@ export default function ProfileScreen() {
                     className="flex-row items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
                     activeOpacity={0.7}
                   >
-                    <View className="flex-row items-center flex-1 mr-2">
+                    <View className="flex-row items-center flex-1 mr-2 min-w-0">
                       <Ionicons name="cloud-outline" size={18} color="#475569" />
-                      <View className="ml-2.5 flex-1">
+                      <View className="ml-2.5 flex-1 min-w-0">
                         <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
                           Google Drive Resume Link
                         </Text>
@@ -776,12 +815,12 @@ export default function ProfileScreen() {
 
               <View className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 {profile?.universityEmail && (
-                  <View className="py-2 flex-row justify-between items-center">
-                    <Text className="text-xs text-slate-500 font-medium">
+                  <View className="py-2 flex-row justify-between items-center gap-2">
+                    <Text className="text-xs text-slate-500 font-medium shrink-0">
                       University Email
                     </Text>
-                    <View className="flex-row items-center">
-                      <Text className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 mr-1">
+                    <View className="flex-row items-center flex-1 justify-end min-w-0">
+                      <Text numberOfLines={1} className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 mr-1 text-right flex-shrink">
                         {profile.universityEmail}
                       </Text>
                       {profile.universityEmailVerified && (
@@ -796,12 +835,12 @@ export default function ProfileScreen() {
                 )}
 
                 {profile?.personalEmail && (
-                  <View className="py-2 flex-row justify-between items-center">
-                    <Text className="text-xs text-slate-500 font-medium">
+                  <View className="py-2 flex-row justify-between items-center gap-2">
+                    <Text className="text-xs text-slate-500 font-medium shrink-0">
                       Personal Email
                     </Text>
-                    <View className="flex-row items-center">
-                      <Text className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 mr-1">
+                    <View className="flex-row items-center flex-1 justify-end min-w-0">
+                      <Text numberOfLines={1} className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 mr-1 text-right flex-shrink">
                         {profile.personalEmail}
                       </Text>
                       {profile.personalEmailVerified && (
@@ -816,27 +855,31 @@ export default function ProfileScreen() {
                 )}
 
                 {profile?.contact?.mobile ? (
-                  <View className="py-2 flex-row justify-between items-center">
-                    <Text className="text-xs text-slate-500 font-medium">Phone</Text>
-                    <Text className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">
+                  <View className="py-2 flex-row justify-between items-center gap-2">
+                    <Text className="text-xs text-slate-500 font-medium shrink-0">Phone</Text>
+                    <Text numberOfLines={1} className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 text-right flex-shrink">
                       {profile.contact.mobile}
                     </Text>
                   </View>
                 ) : null}
 
                 {profile?.location ? (
-                  <View className="py-2 flex-row justify-between items-center">
-                    <Text className="text-xs text-slate-500 font-medium">Location</Text>
-                    <Text className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <View className="py-2 flex-row justify-between items-center gap-2">
+                    <Text className="text-xs text-slate-500 font-medium shrink-0">Location</Text>
+                    <Text numberOfLines={1} className="text-xs font-semibold text-slate-800 dark:text-slate-200 text-right flex-shrink">
                       {profile.location}
                     </Text>
                   </View>
                 ) : null}
 
-                <View className="py-2 flex-row justify-between items-center">
-                  <Text className="text-xs text-slate-500 font-medium">Account ID</Text>
-                  <Text className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400">
-                    {profile?.id || profile?._id || "N/A"}
+                <View className="py-2 flex-row justify-between items-center gap-2">
+                  <Text className="text-xs text-slate-500 font-medium shrink-0">Account ID</Text>
+                  <Text numberOfLines={1} className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400 text-right flex-shrink">
+                    {typeof profile?.id === "string"
+                      ? profile.id
+                      : typeof profile?._id === "string"
+                      ? profile._id
+                      : profile?.roll_no || "N/A"}
                   </Text>
                 </View>
               </View>
@@ -844,9 +887,63 @@ export default function ProfileScreen() {
           </Animated.View>
         ) : null}
 
+        {/* Application Preferences & Notification Settings */}
+        <Animated.View
+          entering={FadeInDown.delay(400).duration(260).springify().damping(20)}
+          className="mb-4"
+        >
+          <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="settings-outline" size={16} color="#8B0000" />
+              <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                Preferences & Settings
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsSettingsOpen(true);
+              }}
+              className="flex-row items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
+              activeOpacity={0.7}
+            >
+              <View className="flex-row items-center flex-1 mr-2">
+                <View className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/60 items-center justify-center mr-2.5 border border-red-200 dark:border-red-800">
+                  <Ionicons name="notifications-outline" size={16} color="#8B0000" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Notification Preferences
+                  </Text>
+                  <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {masterNotificationsEnabled
+                      ? "Job Drives, Tests, Circulars & Deadlines"
+                      : "Notifications Muted"}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row items-center">
+                <View
+                  className={`w-2 h-2 rounded-full mr-2 ${
+                    masterNotificationsEnabled ? "bg-emerald-500" : "bg-slate-400"
+                  }`}
+                />
+                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+              </View>
+            </TouchableOpacity>
+          </Card>
+        </Animated.View>
+
+        {/* Settings Modal */}
+        <NotificationSettingsModal
+          visible={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+
         {/* Sign Out Button */}
         <Animated.View
-          entering={FadeInDown.delay(420).duration(260).springify().damping(20)}
+          entering={FadeInDown.delay(440).duration(260).springify().damping(20)}
         >
           <Button
             title="Sign Out"

@@ -14,12 +14,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { useNotificationsStore } from "@/features/notifications/store";
 import { NotificationCard } from "@/components/notifications/NotificationCard";
+import { NotificationSettingsModal } from "@/components/notifications/NotificationSettingsModal";
 import { NotificationItem } from "@/features/notifications/types";
 import { usePlacementCenterStore } from "@/features/placement/store";
 
@@ -32,6 +33,7 @@ export default function NotificationsScreen() {
   const unreadCount = useNotificationsStore((state) => state.unreadCount);
   const isLoading = useNotificationsStore((state) => state.isLoading);
   const fetchNotifications = useNotificationsStore((state) => state.fetchNotifications);
+  const fetchUnreadCount = useNotificationsStore((state) => state.fetchUnreadCount);
   const markAsRead = useNotificationsStore((state) => state.markAsRead);
   const markAllAsRead = useNotificationsStore((state) => state.markAllAsRead);
 
@@ -40,17 +42,22 @@ export default function NotificationsScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [filterCategory, setFilterCategory] = useState<NotificationCategoryFilter>("all");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  // Automatically refresh notifications and unread badges whenever this tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifications();
+      fetchUnreadCount();
+    }, [fetchNotifications, fetchUnreadCount])
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await fetchNotifications();
+    await Promise.all([fetchNotifications(), fetchUnreadCount()]);
     setRefreshing(false);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, fetchUnreadCount]);
 
   const handleNotificationPress = async (item: NotificationItem) => {
     const isRead = Boolean(item.read || item.isRead);
@@ -78,14 +85,29 @@ export default function NotificationsScreen() {
     const isRead = Boolean(item.read || item.isRead);
     if (filterCategory === "unread") return !isRead;
     if (filterCategory === "placement") {
-      return item.type === "NEW_PLACEMENT_NOTICE" || item.type?.includes("PLACEMENT");
+      return (
+        item.type === "NEW_PLACEMENT_NOTICE" ||
+        item.type === "JOB_POSTED" ||
+        item.type === "APPLICATION_DEADLINE" ||
+        item.type === "JOB_DEADLINE_REMINDER" ||
+        item.type === "APPLICATION_UPDATE" ||
+        item.type === "APPLICATION_STATUS_UPDATE" ||
+        item.type?.includes("PLACEMENT") ||
+        item.type?.includes("JOB")
+      );
     }
     return true;
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FAFAFA] dark:bg-slate-950">
+    <SafeAreaView className="flex-1 bg-[#FAFAFA] dark:bg-slate-950" edges={["top", "left", "right"]}>
       <StatusBar style="auto" />
+
+      {/* Settings Modal */}
+      <NotificationSettingsModal
+        visible={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
 
       {/* Top Header */}
       <View className="px-5 pt-3 pb-3 flex-row items-center justify-between">
@@ -107,17 +129,30 @@ export default function NotificationsScreen() {
           </Text>
         </View>
 
-        {unreadCount > 0 && (
+        <View className="flex-row items-center gap-2">
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              onPress={handleMarkAllRead}
+              className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl flex-row items-center"
+            >
+              <Ionicons name="checkmark-done" size={14} color="#64748B" />
+              <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300 ml-1">
+                Mark Read
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            onPress={handleMarkAllRead}
-            className="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl flex-row items-center"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setIsSettingsOpen(true);
+            }}
+            className="w-9 h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 items-center justify-center shadow-xs"
+            activeOpacity={0.7}
           >
-            <Ionicons name="checkmark-done" size={14} color="#64748B" />
-            <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300 ml-1">
-              Mark Read
-            </Text>
+            <Ionicons name="options-outline" size={18} color="#8B0000" />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
 
       {/* Filter Tabs Bar */}
@@ -188,7 +223,7 @@ export default function NotificationsScreen() {
       {/* Notifications List */}
       <ScrollView
         className="flex-1 px-5"
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

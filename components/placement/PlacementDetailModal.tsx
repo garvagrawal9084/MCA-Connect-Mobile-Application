@@ -1460,15 +1460,12 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                 <Text className="text-[11px] text-slate-400">
                   Issued: {formatCertificateDate(cert.issueDate)}
                 </Text>
-                <TouchableOpacity
-                  onPress={() =>
-                    handleActionToast(`Verified Certificate Serial: ${cert.serial}`)
-                  }
-                  className="bg-slate-900 dark:bg-slate-800 px-3 py-1.5 rounded-lg flex-row items-center"
-                >
-                  <Ionicons name="download-outline" size={13} color="#FFFFFF" />
-                  <Text className="text-xs font-bold text-white ml-1">Download</Text>
-                </TouchableOpacity>
+                <View className="flex-row items-center bg-teal-50 dark:bg-teal-950/60 px-2.5 py-1 rounded-md border border-teal-200/80 dark:border-teal-800">
+                  <Ionicons name="checkmark-circle" size={13} color="#0D9488" />
+                  <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-300 ml-1">
+                    Verified
+                  </Text>
+                </View>
               </View>
             </View>
           ))

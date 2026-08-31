@@ -66,11 +66,23 @@ export default function FollowListScreen() {
     router.back();
   };
 
-  const handleUserPress = (userId: string) => {
+  const handleUserPress = (user: FollowUser) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: "/(app)/alumni/profile",
-      params: { data: JSON.stringify({ _id: userId }) },
+      params: {
+        id: user.id,
+        userId: user.id,
+        data: JSON.stringify({
+          _id: user.id,
+          id: user.id,
+          name: user.name,
+          currentPosition: user.currentPosition,
+          company: user.company,
+          profileImage: user.profileImage,
+          roll_no: user.roll_no,
+        }),
+      },
     } as never);
   };
 
@@ -112,7 +124,7 @@ export default function FollowListScreen() {
               entering={FadeInDown.delay(index * 40).duration(280).springify().damping(20)}
             >
               <TouchableOpacity
-                onPress={() => handleUserPress(user.id)}
+                onPress={() => handleUserPress(user)}
                 activeOpacity={0.7}
                 className="flex-row items-center px-5 py-3 border-b border-slate-100 dark:border-slate-800/50"
               >
