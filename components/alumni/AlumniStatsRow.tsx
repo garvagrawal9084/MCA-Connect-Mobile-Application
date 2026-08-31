@@ -9,6 +9,7 @@ interface StatsCardProps {
   color: string;
   bgColor: string;
   borderColor: string;
+  iconBgColor: string;
 }
 
 const StatsCard: React.FC<StatsCardProps> = ({
@@ -18,20 +19,21 @@ const StatsCard: React.FC<StatsCardProps> = ({
   color,
   bgColor,
   borderColor,
+  iconBgColor,
 }) => {
   return (
     <View
-      className="flex-1 p-3 rounded-2xl items-center"
-      style={{ backgroundColor: bgColor, borderColor, borderWidth: 1 }}
+      className={`flex-1 p-3 rounded-2xl items-center border ${bgColor} ${borderColor} shadow-xs`}
     >
       <View
-        className="w-9 h-9 rounded-xl items-center justify-center mb-2"
-        style={{ backgroundColor: `${color}15` }}
+        className={`w-9 h-9 rounded-xl items-center justify-center mb-2 ${iconBgColor}`}
       >
         <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={17} color={color} />
       </View>
-      <Text className="text-lg font-black text-slate-900 dark:text-white">{value.toLocaleString()}</Text>
-      <Text className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 text-center">
+      <Text className="text-lg font-black text-slate-900 dark:text-white">
+        {value.toLocaleString()}
+      </Text>
+      <Text className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 mt-0.5 text-center">
         {label}
       </Text>
     </View>
@@ -68,24 +70,27 @@ export const AlumniStatsRow: React.FC<AlumniStatsRowProps> = ({
         value={alumniRegistered}
         icon="school-outline"
         color="#8B0000"
-        bgColor="#FEF2F2"
-        borderColor="#FECACA"
+        bgColor="bg-red-50/90 dark:bg-slate-900"
+        borderColor="border-red-200/80 dark:border-red-800/60"
+        iconBgColor="bg-red-100/80 dark:bg-red-950/70"
       />
       <StatsCard
         label="Community"
         value={totalRegistered}
         icon="people-outline"
         color="#0D9488"
-        bgColor="#F0FDFA"
-        borderColor="#99F6E4"
+        bgColor="bg-teal-50/90 dark:bg-slate-900"
+        borderColor="border-teal-200/80 dark:border-teal-800/60"
+        iconBgColor="bg-teal-100/80 dark:bg-teal-950/70"
       />
       <StatsCard
         label="Connections"
         value={followersConnections}
         icon="git-network-outline"
         color="#2563EB"
-        bgColor="#EFF6FF"
-        borderColor="#BFDBFE"
+        bgColor="bg-blue-50/90 dark:bg-slate-900"
+        borderColor="border-blue-200/80 dark:border-blue-800/60"
+        iconBgColor="bg-blue-100/80 dark:bg-blue-950/70"
       />
     </View>
   );

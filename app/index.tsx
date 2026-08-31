@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, Image, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Redirect, Href } from "expo-router";
@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { images } from "@/constants/images";
 import { useAuthStore } from "@/features/auth/authStore";
 
 export default function Index() {
@@ -48,9 +49,13 @@ export default function Index() {
         <View className="items-center">
           <Animated.View
             style={animatedPulseStyle}
-            className="w-20 h-20 bg-red-800 dark:bg-red-900 rounded-3xl items-center justify-center shadow-lg shadow-red-900/30 mb-5"
+            className="w-24 h-24 bg-white dark:bg-slate-900 rounded-3xl items-center justify-center shadow-xl shadow-red-900/10 dark:shadow-none border border-slate-200/80 dark:border-slate-800 p-3 mb-5"
           >
-            <Ionicons name="school" size={42} color="#FFFFFF" />
+            <Image
+              source={images.logo}
+              className="w-20 h-20"
+              resizeMode="contain"
+            />
           </Animated.View>
 
           <View className="bg-red-50 dark:bg-red-950/60 px-3 py-1 rounded-full mb-2.5 border border-red-200 dark:border-red-800">
