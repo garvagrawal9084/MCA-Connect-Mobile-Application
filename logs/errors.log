@@ -208,3 +208,8 @@
     - Verified full TypeScript compilation: npx tsc --noEmit (0 errors).
     - Verified lint: npm run lint (0 errors).
     - Created docs/device-registration-build-app-fix.md and learning/37-fcm-credentials-and-standalone-build-device-registration.md.
+  [2026-09-02 23:25:00.000] [INFO]  [FIREBASE_FCM_INTEGRATION_STANDALONE] Integrated google-services.json:
+    - Added google-services.json for package com.scis.connect (Firebase project scis-connect).
+    - Linked android.googleServicesFile in app.json.
+    - Cleaned up diagnostic alert popups from notificationPermissions.ts.
+    - Verified full TypeScript compilation (0 errors).

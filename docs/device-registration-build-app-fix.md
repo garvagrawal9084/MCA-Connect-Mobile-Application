@@ -135,8 +135,10 @@ To ensure remote push tokens are issued by Google Play Services in your standalo
 4. Select **Android** > **Push Notifications** > **FCM V1 service account key**, and upload the private key.
 
 ### Step 3: Build Standalone APK
-Build your new APK with EAS:
+Build triggered with EAS:
 ```bash
-eas build -p android --profile preview
+npx eas-cli build -p android --profile preview --no-wait
 ```
-All standalone builds will now initialize Firebase natively and register device push tokens with the backend upon student login!
+Live Build Link: https://expo.dev/accounts/scisteam/projects/SCIS-CONNECT/builds/ee4e756b-88f5-42e7-9a70-31bc7c79a9f9
+
+All standalone builds now initialize Firebase natively on cold boot and register device push tokens with the backend upon student login!
