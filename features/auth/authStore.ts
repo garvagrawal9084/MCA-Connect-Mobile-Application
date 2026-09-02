@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               email: freshUser?.email,
               name: freshUser?.name,
             });
-            registerForPushNotificationsAsync().catch((pushErr) =>
+            registerForPushNotificationsAsync(freshToken || undefined).catch((pushErr) =>
               logger.debug("AUTH_STORE", "Push registration after silent refresh deferred", pushErr)
             );
             return true;
@@ -126,7 +126,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Synchronize push token with authenticated session in background
       if (hasValidSession) {
-        registerForPushNotificationsAsync().catch((e) =>
+        registerForPushNotificationsAsync(storedAccessToken || undefined).catch((e) =>
           logger.debug("AUTH_STORE", "Push registration after bootstrap deferred", e)
         );
       }
@@ -177,7 +177,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       // Synchronize push token with backend for authenticated student
-      registerForPushNotificationsAsync().catch((pushErr) => {
+      registerForPushNotificationsAsync(activeToken || undefined).catch((pushErr) => {
         logger.debug("AUTH_STORE", "Background push token sync after login deferred", pushErr);
       });
 
@@ -225,7 +225,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
           error: null,
         });
-        void registerForPushNotificationsAsync();
+        void registerForPushNotificationsAsync(freshToken || undefined);
         return true;
       }
       set({ isLoading: false });

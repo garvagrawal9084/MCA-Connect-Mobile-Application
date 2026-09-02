@@ -4,6 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Platform, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNotificationsStore } from "@/features/notifications/store";
+import {
+  registerForPushNotificationsAsync,
+  getActiveExpoPushToken,
+} from "@/services/notifications/notificationPermissions";
+import { logger } from "@/utils/logger";
 
 export default function TabsLayout() {
   const colorScheme = useColorScheme();
@@ -14,6 +19,13 @@ export default function TabsLayout() {
 
   useEffect(() => {
     fetchUnreadCount();
+
+    // Verify push notification token registration for the active session
+    if (!getActiveExpoPushToken()) {
+      registerForPushNotificationsAsync().catch((e) =>
+        logger.debug("TABS_LAYOUT", "Deferred push registration check skipped", e)
+      );
+    }
   }, [fetchUnreadCount]);
 
   // Compute precise bottom clearance for Android gesture nav bar / iOS Home bar

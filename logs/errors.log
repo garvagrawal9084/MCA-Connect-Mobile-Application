@@ -192,9 +192,19 @@
     - Updated components/placement/PlacementJobDetailModal.tsx to reactively subscribe to Zustand store state for active bookmark status.
     - Verified full TypeScript compilation: npx tsc --noEmit (0 errors).
     - Created docs/placement-saved-jobs-fix.md and learning/31-saved-jobs-and-bookmark-synchronization.md.
-  [2026-08-31 22:52:00.000] [INFO]  [ZERO_DUMMY_DATA_AUDIT] Completed full application audit for dummy and mock data:
-    - Verified strict compliance with app/AGENTS.md (no mock backends, zero dummy data datasets).
-    - Removed arbitrary `8.0` baseline CGPA fallback in features/placement/usePlacementReadinessStats.ts.
-    - Verified that all main features (Home, Placement Studio, Challenges, Results, Notifications, Profile, and Alumni Network) strictly consume live backend endpoints and render accessible empty states when records are unavailable.
+  [2026-09-01 15:28:00.000] [INFO]  [DEVICE_REGISTRATION_STANDALONE_BUILD_FIX] Resolved device registration failure in standalone build applications:
+    - Root Causes Identified:
+      1. Missing Firebase Cloud Messaging configuration: Expo Go embeds Expo FCM credentials, but standalone Android builds (com.scis.connect) require google-services.json and EAS FCM V1 credentials. Without them, native Android throws 'Default FirebaseApp is not initialized in this process com.scis.connect', causing push token acquisition to fail.
+      2. Missing EAS projectId fallback: Constants.expoConfig can be null in standalone builds, causing token generation to abort without fallback projectId.
+      3. Access token timing race condition: registerForPushNotificationsAsync previously relied strictly on storageService.getAccessToken() which could still be persisting during login.
+      4. Android 13+ permission & fast redirect: On cold install, permission dialog acceptance after 400ms login navigation was not retried.
+    - Code Changes:
+      - Updated services/notifications/notificationPermissions.ts to add hardcoded fallback EAS projectId ("97969023-a829-43e7-8bf0-00ad4847726a"), support tokenOverride parameter, and log descriptive errors for FCM requirements.
+      - Updated features/notifications/api.ts registerDevice to accept token override and attach Authorization header directly.
+      - Updated features/auth/authStore.ts to pass active access token directly into registerForPushNotificationsAsync on login, silent refresh, and bootstrap.
+      - Updated app/(app)/(tabs)/_layout.tsx to perform a secondary push token registration check on tabs mount to handle post-login permission grants.
+      - Configured googleServicesFile: "./google-services.json" in app.json.
+      - Fixed conditional React Hook order in components/notifications/InAppNotificationBanner.tsx.
     - Verified full TypeScript compilation: npx tsc --noEmit (0 errors).
-    - Updated docs/zero-dummy-data-policy.md and learning/25-removing-dummy-data-and-clean-empty-states.md.
+    - Verified lint: npm run lint (0 errors).
+    - Created docs/device-registration-build-app-fix.md and learning/37-fcm-credentials-and-standalone-build-device-registration.md.

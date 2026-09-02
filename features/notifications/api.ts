@@ -5,7 +5,12 @@
 import { apiClient, ApiResponse } from "@/services/api";
 import { API_CONFIG } from "@/constants/config";
 import { logger } from "@/utils/logger";
-import { NotificationItem } from "./types";
+import {
+  NotificationItem,
+  RegisterDevicePayload,
+  RegisterDeviceResponse,
+  PushEventPayload,
+} from "./types";
 
 export const notificationsApi = {
   /**
@@ -133,11 +138,10 @@ export const notificationsApi = {
    * Register device push token with backend
    * Endpoint: POST /api/notifications/register-device (alias: /api/notifications/push-token)
    */
-  async registerDevice(payload: {
-    pushToken: string;
-    platform?: string;
-    deviceModel?: string;
-  }): Promise<ApiResponse<{ registeredDevices?: number }>> {
+  async registerDevice(
+    payload: RegisterDevicePayload,
+    token?: string
+  ): Promise<ApiResponse<RegisterDeviceResponse>> {
     if (!payload?.pushToken) {
       return { success: false, message: "Invalid push token" };
     }
@@ -146,16 +150,20 @@ export const notificationsApi = {
       deviceModel: payload.deviceModel,
     });
 
+    const options = token ? { token } : undefined;
+
     try {
-      return await apiClient.post<{ registeredDevices?: number }>(
+      return await apiClient.post<RegisterDeviceResponse>(
         API_CONFIG.ENDPOINTS.NOTIFICATIONS.REGISTER_DEVICE,
-        payload
+        payload,
+        options
       );
     } catch (err) {
       logger.warn("NOTIFICATIONS_API", "Primary register-device failed, attempting alias /push-token", err);
-      return apiClient.post<{ registeredDevices?: number }>(
+      return apiClient.post<RegisterDeviceResponse>(
         API_CONFIG.ENDPOINTS.NOTIFICATIONS.PUSH_TOKEN,
-        payload
+        payload,
+        options
       );
     }
   },
@@ -172,5 +180,17 @@ export const notificationsApi = {
     return apiClient.post(API_CONFIG.ENDPOINTS.NOTIFICATIONS.UNREGISTER_DEVICE, {
       pushToken,
     });
+  },
+
+  /**
+   * Report a delivered-to-app / opened event for admin statistics
+   * Endpoint: POST /api/notifications/push-events
+   */
+  async reportPushEvent(payload: PushEventPayload): Promise<ApiResponse<unknown>> {
+    if (!payload.broadcastId) {
+      return { success: false, message: "Invalid broadcast ID" };
+    }
+    logger.info("NOTIFICATIONS_API", `Reporting push event '${payload.event}' for broadcast: ${payload.broadcastId}`);
+    return apiClient.post(API_CONFIG.ENDPOINTS.NOTIFICATIONS.PUSH_EVENTS, payload);
   },
 };

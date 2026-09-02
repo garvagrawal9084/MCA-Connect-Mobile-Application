@@ -142,22 +142,109 @@ class NotificationWatcher {
       if (id) this.knownNotifIds.add(id);
 
       try {
-        // Route channel & colors based on notification type
-        const isReminder =
-          item.type === "JOB_DEADLINE_REMINDER" ||
-          item.type === "APPLICATION_DEADLINE" ||
-          item.title?.toLowerCase().includes("reminder") ||
-          item.message?.toLowerCase().includes("deadline");
+        const type = String(item.type || "").toUpperCase();
+        const title = (item.title || "").trim();
+        const message = (item.message || "").trim();
+        const meta = (item.metadata || {}) as Record<string, unknown>;
 
-        const channelId = isReminder
-          ? (NOTIFICATION_CHANNELS.APPLICATION_UPDATES?.id || "application-updates")
-          : item.type === "NEW_PLACEMENT_NOTICE" || item.type === "JOB_POSTED"
-          ? (NOTIFICATION_CHANNELS.PLACEMENT_JOBS?.id || "placement-jobs")
-          : item.type?.includes("RESULT")
-          ? (NOTIFICATION_CHANNELS.ACADEMIC_RESULTS?.id || "academic-results")
-          : item.type?.includes("ANNOUNCEMENT")
-          ? (NOTIFICATION_CHANNELS.CAMPUS_ANNOUNCEMENTS?.id || "campus-announcements")
-          : (NOTIFICATION_CHANNELS.GENERAL?.id || "general-notifications");
+        const isReminder =
+          type === "JOB_DEADLINE_REMINDER" ||
+          type === "APPLICATION_DEADLINE" ||
+          type.includes("REMINDER") ||
+          type.includes("DEADLINE") ||
+          title.toLowerCase().includes("reminder") ||
+          message.toLowerCase().includes("deadline");
+
+        const isPlacement =
+          !isReminder &&
+          (type === "NEW_PLACEMENT_NOTICE" ||
+            type === "JOB_POSTED" ||
+            type.includes("PLACEMENT") ||
+            type.includes("JOB") ||
+            Boolean(meta.jobId || meta.companyName));
+
+        const isResult =
+          type === "RESULT_PUBLISHED" ||
+          type.includes("RESULT") ||
+          type.includes("ASSESSMENT");
+
+        const isAnnouncement =
+          type === "CAMPUS_ANNOUNCEMENT" ||
+          type.includes("ANNOUNCEMENT") ||
+          type.includes("NOTICE");
+
+        const isChallenge =
+          type === "CHALLENGE_INVITE" ||
+          type.includes("CHALLENGE");
+
+        const isApplication =
+          type === "APPLICATION_STATUS_UPDATE" ||
+          type === "APPLICATION_UPDATE" ||
+          type.includes("APPLICATION");
+
+        // Helper to ensure clean emoji prefix without duplicating
+        const withEmoji = (emoji: string, text: string) => {
+          const hasEmoji = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(text);
+          return hasEmoji ? text : `${emoji} ${text}`;
+        };
+
+        let formattedTitle = title || "SCIS Connect Notification";
+        let formattedSubtitle = "SCIS Connect Alert";
+        let channelId = NOTIFICATION_CHANNELS.GENERAL.id;
+        let targetScreen = "/(app)/(tabs)/notifications";
+
+        if (isPlacement) {
+          const company = meta.companyName || meta.company || title || "Campus Placement";
+          formattedTitle = withEmoji("💼", `New Job: ${company}`);
+          formattedSubtitle = "SCIS Placement Drive";
+          channelId = NOTIFICATION_CHANNELS.PLACEMENT_JOBS.id;
+          targetScreen = "/(app)/placement/center";
+        } else if (isReminder) {
+          const company = meta.companyName || meta.company || title || "Opportunity";
+          formattedTitle = withEmoji("⏳", `Deadline Alert: ${company}`);
+          formattedSubtitle = "Application Deadline";
+          channelId = NOTIFICATION_CHANNELS.APPLICATION_UPDATES.id;
+          targetScreen = "/(app)/placement/center";
+        } else if (isResult) {
+          formattedTitle = withEmoji("📊", `Results Announced: ${title || "Assessment"}`);
+          formattedSubtitle = "Assessment & Results";
+          channelId = NOTIFICATION_CHANNELS.ACADEMIC_RESULTS.id;
+          targetScreen = "/(app)/placement/center";
+        } else if (isChallenge) {
+          formattedTitle = withEmoji("⚡", `Coding Challenge: ${title || "Active Contest"}`);
+          formattedSubtitle = "SCIS Challenges";
+          channelId = NOTIFICATION_CHANNELS.GENERAL.id;
+          targetScreen = "/(app)/(tabs)/index";
+        } else if (isApplication) {
+          formattedTitle = withEmoji("📋", `Application Update: ${title}`);
+          formattedSubtitle = "Placement Cell Update";
+          channelId = NOTIFICATION_CHANNELS.APPLICATION_UPDATES.id;
+          targetScreen = "/(app)/(tabs)/notifications";
+        } else if (isAnnouncement) {
+          formattedTitle = withEmoji("📢", `Announcement: ${title}`);
+          formattedSubtitle = "SCIS Notice Board";
+          channelId = NOTIFICATION_CHANNELS.CAMPUS_ANNOUNCEMENTS.id;
+          targetScreen = "/(app)/(tabs)/notifications";
+        } else {
+          formattedTitle = withEmoji("🔔", `SCIS Notice: ${title}`);
+          formattedSubtitle = "SCIS Connect Alert";
+          channelId = NOTIFICATION_CHANNELS.GENERAL.id;
+          targetScreen = "/(app)/(tabs)/notifications";
+        }
+
+        // Format body with metadata if available
+        let formattedBody = message || "You have a new update in SCIS Connect.";
+        const metaParts: string[] = [];
+        if (meta.package) {
+          const pkgNum = Number(meta.package);
+          metaParts.push(!isNaN(pkgNum) ? `₹${(pkgNum >= 100000 ? pkgNum / 100000 : pkgNum).toFixed(1)} LPA` : `₹${meta.package}`);
+        }
+        if (meta.location) metaParts.push(String(meta.location));
+        if (meta.deadline) metaParts.push(`Deadline: ${meta.deadline}`);
+
+        if (metaParts.length > 0 && isPlacement) {
+          formattedBody = `${formattedBody} • ${metaParts.join(" • ")}. Tap to view eligibility & apply!`;
+        }
 
         // 1. Dispatch native system notification bar alert
         try {
@@ -168,16 +255,17 @@ class NotificationWatcher {
 
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: item.title || "SCIS Connect Notification",
-              body: item.message || "You have a new update in SCIS Connect.",
+              title: formattedTitle,
+              body: formattedBody,
+              subtitle: formattedSubtitle,
               sound: "default",
-              color: isReminder ? "#7C3AED" : "#8B0000",
+              color: "#8B0000",
               priority: Notifications.AndroidNotificationPriority.HIGH,
               data: {
                 type: item.type,
-                jobId: item.metadata?.jobId,
-                screen: item.metadata?.jobId ? "/(app)/placement/center" : "/(app)/(tabs)/notifications",
-                ...item.metadata,
+                jobId: meta.jobId,
+                screen: meta.jobId ? "/(app)/placement/center" : targetScreen,
+                ...meta,
               },
             },
             trigger: scheduleTrigger,
@@ -190,11 +278,15 @@ class NotificationWatcher {
         notifStore.showInAppBanner({
           id: `srv-${id}`,
           type: item.type,
-          title: item.title,
-          message: item.message,
-          companyName: (item.metadata?.companyName as string) || undefined,
-          jobId: (item.metadata?.jobId as string) || undefined,
-          data: item.metadata,
+          title: formattedTitle,
+          message: formattedBody,
+          subTitle: formattedSubtitle,
+          companyName: (meta.companyName as string) || undefined,
+          jobId: (meta.jobId as string) || undefined,
+          data: {
+            screen: targetScreen,
+            ...meta,
+          },
         });
       } catch (itemErr) {
         logger.warn("NOTIF_WATCHER", "Failed to dispatch alert for notification item", itemErr);

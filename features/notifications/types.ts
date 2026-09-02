@@ -60,6 +60,26 @@ export interface InAppNotificationBannerData {
   data?: Record<string, unknown>;
 }
 
+export interface RegisterDevicePayload {
+  pushToken: string;
+  platform?: string;
+  deviceModel?: string;
+}
+
+export interface RegisterDeviceResponse {
+  registeredDevices?: number;
+}
+
+export interface UnregisterDevicePayload {
+  pushToken: string;
+}
+
+export interface PushEventPayload {
+  broadcastId: string;
+  event: "received" | "opened" | string;
+  pushToken?: string;
+}
+
 /**
  * Normalizes any backend notification payload shape into a consistent NotificationItem
  */

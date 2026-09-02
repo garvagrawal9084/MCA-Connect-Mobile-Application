@@ -4,11 +4,15 @@ import { View, LogBox, AppState, AppStateStatus } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { notificationEngine, registerBackgroundNotificationTaskAsync } from "@/services/notifications";
-import { registerForPushNotificationsAsync } from "@/services/notifications/notificationPermissions";
+import {
+  registerForPushNotificationsAsync,
+  getActiveExpoPushToken,
+} from "@/services/notifications/notificationPermissions";
 import { notificationWatcher } from "@/services/notifications/notificationWatcher";
 import { jobWatcher } from "@/features/placement/jobWatcher";
 import { usePlacementCenterStore } from "@/features/placement/store";
 import { useNotificationsStore } from "@/features/notifications/store";
+import { notificationsApi } from "@/features/notifications/api";
 import { InAppNotificationBanner } from "@/components/notifications/InAppNotificationBanner";
 import { logger } from "@/utils/logger";
 
@@ -85,6 +89,19 @@ export default function RootLayout() {
         ? (data.data as Record<string, unknown>)
         : undefined;
 
+      // Report 'opened' push event to backend for admin statistics if broadcastId is present
+      const rawBroadcastId = data.broadcastId || nestedData?.broadcastId || data.broadcast_id || nestedData?.broadcast_id;
+      const broadcastId = typeof rawBroadcastId === "string" && rawBroadcastId.trim().length > 0 ? rawBroadcastId.trim() : undefined;
+      if (broadcastId) {
+        notificationsApi
+          .reportPushEvent({
+            broadcastId,
+            event: "opened",
+            pushToken: getActiveExpoPushToken() || undefined,
+          })
+          .catch((err) => logger.debug("NOTIFICATIONS", "Reporting push opened event failed", err));
+      }
+
       const rawJobId = data.jobId || nestedData?.jobId;
       const jobId = typeof rawJobId === "string" && rawJobId.trim().length > 0 ? rawJobId.trim() : undefined;
 
@@ -140,13 +157,30 @@ export default function RootLayout() {
       }
     );
 
-    // 5. Listener for foreground notification arrival
+    // 6. Listener for foreground notification arrival
     const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
       logger.info("NOTIFICATIONS", "Received foreground notification", {
         title: notification.request.content.title,
       });
 
       const data = notification.request.content.data as Record<string, unknown> | undefined;
+      const nestedData = (typeof data?.data === "object" && data?.data !== null)
+        ? (data.data as Record<string, unknown>)
+        : undefined;
+
+      // Report 'received' push event to backend for admin statistics if broadcastId is present
+      const rawBroadcastId = data?.broadcastId || nestedData?.broadcastId || data?.broadcast_id || nestedData?.broadcast_id;
+      const broadcastId = typeof rawBroadcastId === "string" && rawBroadcastId.trim().length > 0 ? rawBroadcastId.trim() : undefined;
+      if (broadcastId) {
+        notificationsApi
+          .reportPushEvent({
+            broadcastId,
+            event: "received",
+            pushToken: getActiveExpoPushToken() || undefined,
+          })
+          .catch((err) => logger.debug("NOTIFICATIONS", "Reporting push received event failed", err));
+      }
+
       useNotificationsStore.getState().showInAppBanner({
         id: `fg-${Date.now()}`,
         type: String(data?.type || "SYSTEM"),

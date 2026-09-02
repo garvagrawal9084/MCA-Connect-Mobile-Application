@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.scis.connect",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/logo.png",

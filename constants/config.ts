@@ -37,6 +37,7 @@ export const API_CONFIG = {
       REGISTER_DEVICE: "/api/notifications/register-device",
       UNREGISTER_DEVICE: "/api/notifications/unregister-device",
       PUSH_TOKEN: "/api/notifications/push-token",
+      PUSH_EVENTS: "/api/notifications/push-events",
       DELETE: (id: string) => `/api/notifications/${id}`,
       BY_ID: (id: string) => `/api/notifications/${id}`,
     },

@@ -1,7 +1,7 @@
 /**
  * SCIS Connect Mobile - In-App Notification Banner
  * High-fidelity, animated floating banner that slides down from top of the screen
- * when a new job posting or trigger alert is received.
+ * for all notification triggers (Jobs, Reminders, Results, Announcements, Challenges).
  */
 
 import React, { useEffect, useCallback } from "react";
@@ -22,6 +22,110 @@ import { useNotificationsStore } from "@/features/notifications/store";
 import { usePlacementCenterStore } from "@/features/placement/store";
 import { InAppNotificationBannerData } from "@/features/notifications/types";
 
+interface BannerConfig {
+  icon: keyof typeof Ionicons.glyphMap;
+  category: string;
+  ctaText: string;
+  defaultScreen?: string;
+}
+
+function resolveBannerConfig(banner: InAppNotificationBannerData): BannerConfig {
+  const type = String(banner.type || "").toUpperCase();
+  const rawData = (banner.data || {}) as Record<string, unknown>;
+
+  const hasJob = Boolean(banner.jobId || rawData.jobId || banner.companyName || rawData.companyName);
+
+  if (
+    type === "JOB_POSTED" ||
+    type === "NEW_PLACEMENT_NOTICE" ||
+    type.includes("PLACEMENT") ||
+    (type.includes("JOB") && !type.includes("DEADLINE") && !type.includes("REMINDER")) ||
+    hasJob && !type.includes("DEADLINE") && !type.includes("REMINDER") && !type.includes("STATUS")
+  ) {
+    return {
+      icon: "briefcase",
+      category: "NEW PLACEMENT DRIVE",
+      ctaText: "View Job",
+      defaultScreen: "/(app)/placement/center",
+    };
+  }
+
+  if (
+    type === "APPLICATION_DEADLINE" ||
+    type === "JOB_DEADLINE_REMINDER" ||
+    type.includes("REMINDER") ||
+    type.includes("DEADLINE")
+  ) {
+    return {
+      icon: "time",
+      category: "DEADLINE REMINDER",
+      ctaText: "View Job",
+      defaultScreen: "/(app)/placement/center",
+    };
+  }
+
+  if (
+    type === "RESULT_PUBLISHED" ||
+    type.includes("RESULT") ||
+    type.includes("ASSESSMENT") ||
+    type.includes("SCORE")
+  ) {
+    return {
+      icon: "bar-chart",
+      category: "ASSESSMENT RESULTS",
+      ctaText: "Check Result",
+      defaultScreen: "/(app)/placement/center",
+    };
+  }
+
+  if (
+    type === "APPLICATION_STATUS_UPDATE" ||
+    type === "APPLICATION_UPDATE" ||
+    type.includes("APPLICATION")
+  ) {
+    return {
+      icon: "document-text",
+      category: "APPLICATION UPDATE",
+      ctaText: "View Update",
+      defaultScreen: "/(app)/(tabs)/notifications",
+    };
+  }
+
+  if (
+    type === "CHALLENGE_INVITE" ||
+    type.includes("CHALLENGE") ||
+    type.includes("LEETCODE") ||
+    type.includes("CONTEST")
+  ) {
+    return {
+      icon: "flash",
+      category: "CODING CHALLENGE",
+      ctaText: "Join Challenge",
+      defaultScreen: "/(app)/(tabs)/index",
+    };
+  }
+
+  if (
+    type === "CAMPUS_ANNOUNCEMENT" ||
+    type.includes("ANNOUNCEMENT") ||
+    type.includes("NOTICE")
+  ) {
+    return {
+      icon: "megaphone",
+      category: "CAMPUS ANNOUNCEMENT",
+      ctaText: "View Notice",
+      defaultScreen: "/(app)/(tabs)/notifications",
+    };
+  }
+
+  return {
+    icon: "notifications",
+    category: banner.subTitle ? banner.subTitle.toUpperCase() : "SCIS CONNECT ALERT",
+    ctaText: "View Notice",
+    defaultScreen: "/(app)/(tabs)/notifications",
+  };
+}
+
 export function InAppNotificationBanner() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -32,11 +136,11 @@ export function InAppNotificationBanner() {
   const fetchJobDetail = usePlacementCenterStore((state) => state.fetchJobDetail);
   const setSelectedJob = usePlacementCenterStore((state) => state.setSelectedJob);
 
-  const translateY = useSharedValue(-160);
+  const translateY = useSharedValue(-180);
   const opacity = useSharedValue(0);
 
   const handleDismiss = useCallback(() => {
-    translateY.value = withTiming(-160, { duration: 220 }, (finished) => {
+    translateY.value = withTiming(-180, { duration: 220 }, (finished) => {
       if (finished) {
         runOnJS(dismissInAppBanner)();
       }
@@ -57,38 +161,17 @@ export function InAppNotificationBanner() {
       });
       opacity.value = withTiming(1, { duration: 250 });
 
-      // Auto dismiss after 5.5 seconds
+      // Auto dismiss after 6 seconds
       const timer = setTimeout(() => {
         handleDismiss();
-      }, 5500);
+      }, 6000);
 
       return () => clearTimeout(timer);
     } else {
-      translateY.value = -160;
+      translateY.value = -180;
       opacity.value = 0;
     }
   }, [activeBanner, handleDismiss, opacity, translateY]);
-
-  const handleBannerPress = async (banner: InAppNotificationBannerData) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    handleDismiss();
-
-    if (banner.jobId) {
-      try {
-        const job = await fetchJobDetail(banner.jobId);
-        if (job) {
-          setSelectedJob(job);
-        }
-      } catch {
-        // Continue navigation
-      }
-      router.push("/(app)/placement/center" as never);
-    } else if (banner.data?.screen && typeof banner.data.screen === "string") {
-      router.push(banner.data.screen as never);
-    } else {
-      router.push("/(app)/(tabs)/notifications" as never);
-    }
-  };
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -97,17 +180,54 @@ export function InAppNotificationBanner() {
 
   if (!activeBanner) return null;
 
-  const isReminder =
-    activeBanner.type === "APPLICATION_DEADLINE" ||
-    activeBanner.type === "JOB_DEADLINE_REMINDER" ||
-    activeBanner.type?.includes("REMINDER") ||
-    activeBanner.type?.includes("DEADLINE");
+  const config = resolveBannerConfig(activeBanner);
+  const rawData = (activeBanner.data || {}) as Record<string, unknown>;
 
-  const isJob =
-    !isReminder &&
-    (activeBanner.type === "JOB_POSTED" ||
-      activeBanner.type === "NEW_PLACEMENT_NOTICE" ||
-      Boolean(activeBanner.jobId));
+  const rawJobId = activeBanner.jobId || rawData.jobId;
+  const jobId = typeof rawJobId === "string" && rawJobId.trim().length > 0 ? rawJobId.trim() : undefined;
+
+  const rawPackage = activeBanner.package || rawData.package || rawData.ctc;
+  let packageText: string | undefined;
+  if (rawPackage) {
+    const pkgNum = Number(rawPackage);
+    packageText = !isNaN(pkgNum) ? `₹${(pkgNum >= 100000 ? pkgNum / 100000 : pkgNum).toFixed(1)} LPA` : String(rawPackage);
+  }
+
+  const rawDeadline = rawData.deadline || rawData.applicationDeadline;
+  const deadlineText = typeof rawDeadline === "string" && rawDeadline.trim().length > 0 ? rawDeadline.trim() : undefined;
+
+  const rawLocation = activeBanner.location || rawData.location;
+  const locationText = typeof rawLocation === "string" && rawLocation.trim().length > 0 ? rawLocation.trim() : undefined;
+
+  const handleBannerPress = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    handleDismiss();
+
+    if (jobId) {
+      try {
+        const job = await fetchJobDetail(jobId);
+        if (job) {
+          setSelectedJob(job);
+        }
+      } catch {
+        // Continue navigation
+      }
+      router.push("/(app)/placement/center" as never);
+      return;
+    }
+
+    if (activeBanner.data?.screen && typeof activeBanner.data.screen === "string") {
+      router.push(activeBanner.data.screen as never);
+      return;
+    }
+
+    if (config.defaultScreen) {
+      router.push(config.defaultScreen as never);
+      return;
+    }
+
+    router.push("/(app)/(tabs)/notifications" as never);
+  };
 
   return (
     <Animated.View
@@ -118,7 +238,7 @@ export function InAppNotificationBanner() {
           left: 14,
           right: 14,
           zIndex: 9999,
-          shadowColor: isReminder ? "#7C3AED" : "#8B0000",
+          shadowColor: "#8B0000",
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.18,
           shadowRadius: 16,
@@ -128,49 +248,28 @@ export function InAppNotificationBanner() {
       ]}
     >
       <Pressable
-        onPress={() => handleBannerPress(activeBanner)}
-        className={`bg-white dark:bg-slate-900 border-2 rounded-3xl p-3.5 ${
-          isReminder
-            ? "border-purple-600/40 dark:border-purple-800/60"
-            : "border-[#8B0000]/30 dark:border-rose-900/60"
-        }`}
+        onPress={handleBannerPress}
+        className="bg-white dark:bg-slate-900 border-2 border-[#8B0000]/30 dark:border-rose-900/60 rounded-3xl p-3.5"
       >
         {/* Top Header Row */}
         <View className="flex-row items-center justify-between mb-2">
-          <View className="flex-row items-center">
-            <View
-              className={`w-6 h-6 rounded-full items-center justify-center border mr-2 ${
-                isReminder
-                  ? "bg-purple-50 dark:bg-purple-950/80 border-purple-200 dark:border-purple-800"
-                  : "bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-800"
-              }`}
-            >
-              <Ionicons
-                name={isReminder ? "time" : isJob ? "briefcase" : "notifications"}
-                size={12}
-                color={isReminder ? "#7C3AED" : "#8B0000"}
-              />
+          <View className="flex-row items-center flex-1 mr-2">
+            <View className="w-6 h-6 rounded-full items-center justify-center border bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-800 mr-2">
+              <Ionicons name={config.icon} size={12} color="#8B0000" />
             </View>
             <Text
-              className={`text-[11px] font-black tracking-wider uppercase ${
-                isReminder
-                  ? "text-purple-700 dark:text-purple-400"
-                  : "text-[#8B0000] dark:text-red-400"
-              }`}
+              className="text-[11px] font-black tracking-wider uppercase text-[#8B0000] dark:text-red-400"
+              numberOfLines={1}
             >
-              {isReminder
-                ? "DEADLINE REMINDER"
-                : isJob
-                ? "NEW PLACEMENT DRIVE"
-                : activeBanner.subTitle || "SCIS CONNECT ALERT"}
+              {config.category}
             </Text>
-            <View className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-2" />
-            <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500 ml-1">
+            <View className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-2 mr-1" />
+            <Text className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
               Just now
             </Text>
           </View>
 
-          {/* Dismiss button */}
+          {/* Dismiss close button */}
           <TouchableOpacity
             onPress={(e) => {
               e.stopPropagation();
@@ -198,17 +297,43 @@ export function InAppNotificationBanner() {
             >
               {activeBanner.message}
             </Text>
+
+            {/* Optional Metadata Pills */}
+            {(packageText || deadlineText || locationText) && (
+              <View className="flex-row flex-wrap items-center gap-1.5 mt-2">
+                {packageText && (
+                  <View className="bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200/80 dark:border-emerald-800">
+                    <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                      {packageText}
+                    </Text>
+                  </View>
+                )}
+                {deadlineText && (
+                  <View className="bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-md border border-rose-200/80 dark:border-rose-800">
+                    <Text className="text-[10px] font-bold text-rose-700 dark:text-rose-300">
+                      {deadlineText}
+                    </Text>
+                  </View>
+                )}
+                {locationText && (
+                  <View className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                    <Text className="text-[10px] font-medium text-slate-600 dark:text-slate-300">
+                      {locationText}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Action CTA Pill */}
           <TouchableOpacity
-            onPress={() => handleBannerPress(activeBanner)}
-            className={`px-3.5 py-2 rounded-xl flex-row items-center shadow-xs ${
-              isReminder ? "bg-purple-700" : "bg-[#8B0000]"
-            }`}
+            onPress={handleBannerPress}
+            activeOpacity={0.85}
+            className="bg-[#8B0000] px-3.5 py-2 rounded-xl flex-row items-center shadow-xs"
           >
             <Text className="text-xs font-bold text-white">
-              {isJob || isReminder || activeBanner.jobId ? "View Job" : "Open"}
+              {config.ctaText}
             </Text>
             <Ionicons name="arrow-forward" size={12} color="#ffffff" style={{ marginLeft: 3 }} />
           </TouchableOpacity>
