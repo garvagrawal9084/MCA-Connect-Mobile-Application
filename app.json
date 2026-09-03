@@ -27,7 +27,9 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -58,7 +60,14 @@
           "sounds": []
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow SCIS Connect to save your verified certificates to your photo gallery.",
+          "savePhotosPermission": "Allow SCIS Connect to save your verified certificates to your photo gallery."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

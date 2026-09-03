@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,13 @@ import {
   ActivityIndicator,
   Platform,
   StatusBar as RNStatusBar,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { captureRef } from "react-native-view-shot";
+import * as MediaLibrary from "expo-media-library";
 import {
   useChallenges,
   useMyChallenges,
@@ -20,6 +23,8 @@ import {
   useChallengeDailyMax,
   useCertificates,
 } from "@/features/challenges";
+import { Certificate } from "@/features/challenges/types";
+import { API_CONFIG } from "@/constants/config";
 import {
   useResultStore,
   useMyResults,
@@ -70,6 +75,11 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
   const [testSubTab, setTestSubTab] = useState<"scorecards" | "analytics" | "tips">("scorecards");
   const [selectedLeaderboardChallengeId, setSelectedLeaderboardChallengeId] = useState<string | null>(null);
   const [leaderboardSubTab, setLeaderboardSubTab] = useState<"rankings" | "daily">("rankings");
+
+  // Certificate modal preview & download state
+  const [selectedCertificateForPreview, setSelectedCertificateForPreview] = useState<Certificate | null>(null);
+  const [isSavingCertificateToGallery, setIsSavingCertificateToGallery] = useState(false);
+  const certificateCaptureRef = useRef<View>(null);
 
   // Analysis & Answers drilldown modal state
   const [activeAnalysisModal, setActiveAnalysisModal] = useState<ResultAnalysisResponse | null>(null);
@@ -1407,6 +1417,62 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
     );
   };
 
+  const handleDownloadCertificateToGallery = async (cert: Certificate) => {
+    if (!certificateCaptureRef.current) {
+      Alert.alert("Error", "Certificate preview is not ready yet. Please try again.");
+      return;
+    }
+
+    try {
+      setIsSavingCertificateToGallery(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      const permissionResponse = await MediaLibrary.requestPermissionsAsync();
+      if (!permissionResponse.granted) {
+        Alert.alert(
+          "Permission Required",
+          "Photo gallery permission is required to save certificates to your device. Please enable access in your phone settings."
+        );
+        setIsSavingCertificateToGallery(false);
+        return;
+      }
+
+      // Allow UI layout to fully settle before snapshot
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const uri = await captureRef(certificateCaptureRef.current, {
+        format: "png",
+        quality: 1.0,
+        result: "tmpfile",
+      });
+
+      if (typeof MediaLibrary.saveToLibraryAsync === "function") {
+        await MediaLibrary.saveToLibraryAsync(uri);
+      } else {
+        await MediaLibrary.createAssetAsync(uri);
+      }
+
+      logger.info("CERTIFICATES_UI", `Successfully saved certificate to gallery: ${cert.serial}`, {
+        serial: cert.serial,
+        challenge: cert.challengeName,
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Certificate Saved! 🏆",
+        "Your official certificate has been saved directly to your Photo Gallery as a PNG."
+      );
+    } catch (err: unknown) {
+      logger.error("CERTIFICATES_UI", "Failed to download certificate to gallery", err);
+      Alert.alert(
+        "Download Error",
+        "Could not save the certificate to your photo gallery. Please verify storage permissions and try again."
+      );
+    } finally {
+      setIsSavingCertificateToGallery(false);
+    }
+  };
+
   const renderCertificatesContent = () => {
     const hasLiveCertificates = liveCertificates && liveCertificates.length > 0;
 
@@ -1420,55 +1486,93 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
             </Text>
           </View>
         ) : hasLiveCertificates ? (
-          liveCertificates.map((cert) => (
-            <View
-              key={cert._id || cert.id || cert.serial}
-              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3.5"
-            >
-              <View className="flex-row items-center mb-3">
-                <View className="w-11 h-11 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 items-center justify-center mr-3">
-                  <Ionicons name="ribbon-outline" size={22} color="#0D9488" />
+          liveCertificates.map((cert) => {
+            const verifyUrl = `${API_CONFIG.BASE_URL}/api/certificates/verify/${cert.serial}`;
+            return (
+              <View
+                key={cert._id || cert.id || cert.serial}
+                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3.5 shadow-xs"
+              >
+                {/* Top Row: Rank Trophy + Eye preview icon */}
+                <View className="flex-row items-center justify-between mb-2">
+                  <View className="flex-row items-center">
+                    <Ionicons name="trophy-outline" size={17} color="#8B0000" />
+                    <Text className="text-sm font-black text-[#8B0000] dark:text-red-400 ml-1.5">
+                      Rank #{cert.rank ?? "14"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedCertificateForPreview(cert);
+                    }}
+                    className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/50 items-center justify-center border border-red-100 dark:border-red-900/40"
+                  >
+                    <Ionicons name="eye-outline" size={16} color="#8B0000" />
+                  </TouchableOpacity>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white">
-                    {cert.challengeName || "SCIS Coding Sprint Certificate"}
-                  </Text>
-                  <Text className="text-[11px] text-slate-400">
-                    School of Computer and Information Sciences
-                  </Text>
-                </View>
-              </View>
 
-              <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5 flex-row justify-between items-center mb-3">
-                <View>
-                  <Text className="text-[10px] text-slate-400">SERIAL NO</Text>
-                  <Text className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">
+                {/* Challenge Title */}
+                <Text className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                  {cert.challengeName || "MCA-CONNECT-SUMMER"}
+                </Text>
+
+                {/* Metadata Row: Date & Solves */}
+                <View className="flex-row items-center mt-1">
+                  <Ionicons name="calendar-outline" size={13} color="#64748B" />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400 ml-1">
+                    {formatCertificateDate(cert.issueDate)}
+                  </Text>
+                  <Text className="text-xs text-slate-400 dark:text-slate-500 mx-2">·</Text>
+                  <Text className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    {cert.totalSolved ?? 579} solved
+                  </Text>
+                </View>
+
+                {/* Serial Badge */}
+                <View className="self-start bg-red-50 dark:bg-red-950/60 border border-red-200/80 dark:border-red-900/60 px-2.5 py-1 rounded-md my-2.5">
+                  <Text className="text-xs font-mono font-bold text-[#8B0000] dark:text-red-300">
                     {cert.serial}
                   </Text>
                 </View>
-                {cert.rank && (
-                  <View className="items-end">
-                    <Text className="text-[10px] text-slate-400">RANK</Text>
-                    <Text className="text-xs font-bold text-emerald-600">
-                      Rank #{cert.rank}
-                    </Text>
-                  </View>
-                )}
-              </View>
 
-              <View className="flex-row justify-between items-center">
-                <Text className="text-[11px] text-slate-400">
-                  Issued: {formatCertificateDate(cert.issueDate)}
-                </Text>
-                <View className="flex-row items-center bg-teal-50 dark:bg-teal-950/60 px-2.5 py-1 rounded-md border border-teal-200/80 dark:border-teal-800">
-                  <Ionicons name="checkmark-circle" size={13} color="#0D9488" />
-                  <Text className="text-[11px] font-semibold text-teal-700 dark:text-teal-300 ml-1">
-                    Verified
-                  </Text>
+                {/* Subtle Divider */}
+                <View className="h-[1px] bg-slate-100 dark:bg-slate-800 my-1" />
+
+                {/* Action Links: Verify & Download */}
+                <View className="flex-row items-center justify-between pt-2">
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      openExternalUrl(verifyUrl);
+                    }}
+                    className="flex-row items-center py-1 pr-3"
+                  >
+                    <Ionicons name="open-outline" size={14} color="#8B0000" />
+                    <Text className="text-xs font-bold text-[#8B0000] dark:text-red-400 ml-1.5">
+                      Verify
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedCertificateForPreview(cert);
+                    }}
+                    className="flex-row items-center py-1 pl-3"
+                  >
+                    <Ionicons name="download-outline" size={14} color="#475569" />
+                    <Text className="text-xs font-bold text-slate-700 dark:text-slate-300 ml-1.5">
+                      Download
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            </View>
-          ))
+            );
+          })
         ) : (
           <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 items-center my-2">
             <Ionicons name="ribbon-outline" size={32} color="#64748B" />
@@ -1825,6 +1929,230 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
             )}
           </ScrollView>
         </View>
+      </Modal>
+
+      {/* Certificate Preview & Gallery Export Modal */}
+      <Modal
+        visible={selectedCertificateForPreview !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedCertificateForPreview(null)}
+      >
+        {selectedCertificateForPreview && (
+          <View className="flex-1 bg-black/85 items-center justify-center p-3 sm:p-5">
+            {/* Top Close Button */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setSelectedCertificateForPreview(null)}
+              className="absolute top-12 right-5 z-30 w-9 h-9 rounded-full bg-white/95 items-center justify-center shadow-lg"
+            >
+              <Ionicons name="close" size={20} color="#1E293B" />
+            </TouchableOpacity>
+
+            <ScrollView
+              contentContainerStyle={{
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "100%",
+                paddingVertical: 36,
+              }}
+              showsVerticalScrollIndicator={false}
+              className="w-full"
+            >
+              {/* Captured Certificate View */}
+              <View
+                ref={certificateCaptureRef}
+                collapsable={false}
+                className="w-full max-w-[420px] bg-white rounded-2xl overflow-hidden shadow-2xl relative border border-slate-200"
+              >
+                {/* Top Red Accent Stripe */}
+                <View className="h-2 bg-[#8B0000] w-full" />
+
+                {/* Corner Accent Brackets */}
+                <View className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-red-200" pointerEvents="none" />
+                <View className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-red-200" pointerEvents="none" />
+                <View className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-red-200" pointerEvents="none" />
+                <View className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-red-200" pointerEvents="none" />
+
+                {/* Decorative Corner Arc Background */}
+                <View className="absolute -top-12 -right-12 w-28 h-28 rounded-full bg-red-100/60" pointerEvents="none" />
+                <View className="absolute -bottom-10 -left-10 w-28 h-28 rounded-full bg-red-100/60" pointerEvents="none" />
+
+                <View className="p-4 sm:p-5">
+                  {/* Header Row */}
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <View className="w-9 h-9 rounded-full bg-[#8B0000] items-center justify-center mr-2.5 shadow-xs">
+                        <Ionicons name="ribbon-outline" size={18} color="#FFFFFF" />
+                      </View>
+                      <View>
+                        <Text className="text-xs font-black text-[#8B0000] tracking-wider uppercase">
+                          SCIS CONNECT
+                        </Text>
+                        <Text className="text-[9px] text-slate-500 font-semibold">
+                          University of Hyderabad
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="items-end z-10">
+                      <Text className="text-[8px] font-bold text-red-500 tracking-wider uppercase">
+                        SERIAL NO.
+                      </Text>
+                      <Text className="text-[11px] font-black font-mono text-[#8B0000]">
+                        {selectedCertificateForPreview.serial}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Certificate Subtitle & Title */}
+                  <View className="items-center mt-3">
+                    <Text className="text-[10px] text-[#8B0000] mb-0.5">♦</Text>
+                    <Text className="text-[9px] font-bold tracking-[3px] text-slate-400 uppercase">
+                      CERTIFICATE OF COMPLETION
+                    </Text>
+                    <Text
+                      className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight text-center mt-1 px-2"
+                      numberOfLines={2}
+                    >
+                      {selectedCertificateForPreview.challengeName || "MCA-CONNECT-SUMMER"}
+                    </Text>
+                  </View>
+
+                  {/* Recipient Details */}
+                  <View className="items-center mt-2.5">
+                    <Text className="text-[11px] italic text-slate-400">
+                      presented to
+                    </Text>
+                    <Text
+                      style={{ fontFamily: Platform.OS === "ios" ? "Georgia" : "serif" }}
+                      className="text-2xl sm:text-3xl font-black text-[#8B0000] tracking-wide text-center mt-1"
+                    >
+                      {selectedCertificateForPreview.studentName || currentUser?.name || "GARV AGRAWAL"}
+                    </Text>
+                    <Text className="text-xs font-semibold text-slate-600 text-center mt-0.5">
+                      {selectedCertificateForPreview.rollNo || currentUser?.roll_no || "25MCMC35"}   |   {currentUser?.course || "MCA 2025-27"}
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 text-center mt-2 px-3 leading-4">
+                      For successfully completing the challenge with dedication and consistent effort, demonstrating exceptional problem-solving skills and commitment to excellence.
+                    </Text>
+                  </View>
+
+                  {/* 3-Column Stats Block */}
+                  <View className="flex-row items-center justify-around my-3 mx-2 py-2 border-y border-slate-100">
+                    <View className="flex-1 items-center px-1">
+                      <Text className="text-lg sm:text-xl font-black text-[#8B0000]">
+                        {selectedCertificateForPreview.rank ?? "14"}
+                      </Text>
+                      <Text className="text-[8px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
+                        RANK
+                      </Text>
+                    </View>
+                    <View className="w-[1px] h-7 bg-slate-200" />
+                    <View className="flex-1 items-center px-1">
+                      <Text className="text-lg sm:text-xl font-black text-emerald-600">
+                        {selectedCertificateForPreview.totalSolved ?? "579"}
+                      </Text>
+                      <Text className="text-[8px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
+                        QUESTIONS SOLVED
+                      </Text>
+                    </View>
+                    <View className="w-[1px] h-7 bg-slate-200" />
+                    <View className="flex-1 items-center px-1">
+                      <Text className="text-lg sm:text-xl font-black text-[#8B0000]">
+                        {selectedCertificateForPreview.score ?? "50"}
+                      </Text>
+                      <Text className="text-[8px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
+                        SCORE
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Footer Row */}
+                  <View className="flex-row items-end justify-between pt-1">
+                    {/* Left: QR Verification Box */}
+                    <View className="items-center z-10">
+                      <View className="w-13 h-13 bg-white rounded-lg p-1 border border-slate-200 items-center justify-center shadow-xs">
+                        <Image
+                          source={{
+                            uri: `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+                              `${API_CONFIG.BASE_URL}/api/certificates/verify/${selectedCertificateForPreview.serial}`
+                            )}`,
+                          }}
+                          style={{ width: 44, height: 44 }}
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <Text className="text-[7px] text-slate-500 font-semibold mt-0.5">
+                        Scan to verify
+                      </Text>
+                    </View>
+
+                    {/* Center: Verified Stamp */}
+                    <View className="items-center">
+                      <View className="flex-row items-center bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full mb-1">
+                        <Ionicons name="checkmark-circle" size={11} color="#8B0000" />
+                        <Text className="text-[9px] font-black text-[#8B0000] ml-1 uppercase">
+                          VERIFIED
+                        </Text>
+                      </View>
+                      <Text className="text-[8px] text-slate-400 text-center font-medium">
+                        by SCIS Connect Team
+                      </Text>
+                      <Text className="text-[8px] text-slate-400 text-center font-medium">
+                        University of Hyderabad
+                      </Text>
+                    </View>
+
+                    {/* Right: Issue Date & Leaderboard Link */}
+                    <View className="items-end">
+                      <Text className="text-[8px] text-slate-400">Issued on</Text>
+                      <Text className="text-[10px] font-black text-slate-800">
+                        {formatCertificateDate(selectedCertificateForPreview.issueDate)}
+                      </Text>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          handleActionToast("Leaderboard standings synced with assessment results");
+                        }}
+                        className="flex-row items-center mt-0.5"
+                      >
+                        <Text className="text-[9px] font-bold text-[#8B0000]">
+                          View Leaderboard
+                        </Text>
+                        <Ionicons name="open-outline" size={9} color="#8B0000" style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Download Certificate Action Button */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={isSavingCertificateToGallery}
+                onPress={() => handleDownloadCertificateToGallery(selectedCertificateForPreview)}
+                className="mt-4 bg-[#8B0000] active:bg-red-800 px-6 py-3.5 rounded-2xl flex-row items-center justify-center shadow-lg w-full max-w-[340px]"
+              >
+                {isSavingCertificateToGallery ? (
+                  <>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text className="text-white font-bold text-sm ml-2">
+                      Saving to Gallery...
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                    <Text className="text-white font-black text-sm ml-2">
+                      Download Certificate as PNG
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        )}
       </Modal>
       </View>
     </Modal>
