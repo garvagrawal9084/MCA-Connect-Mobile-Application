@@ -213,3 +213,27 @@
     - Linked android.googleServicesFile in app.json.
     - Cleaned up diagnostic alert popups from notificationPermissions.ts.
     - Verified full TypeScript compilation (0 errors).
+  [2026-09-03 01:33:00.000] [INFO]  [DEVICE_REGISTRATION_DEDUPLICATION] Prevented duplicate device records:
+    - Implemented inFlightRegistrationPromise in services/notifications/notificationPermissions.ts to prevent concurrent execution.
+    - Added lastRegisteredToken and lastRegisteredAccessToken session tracking to skip duplicate calls.
+    - Recompiled Release APK with standalone offline bundle and embedded Firebase.
+  [2026-09-03 09:23:00.000] [INFO]  [NAVIGATION_LAYOUT_OTA] Moved General section from Alumni Network to Placement Studio:
+    - Removed General section (Profile, Forums, Support, Contact Us) from app/(app)/alumni/index.tsx.
+    - Added GENERAL_OPTIONS configuration, handleGeneralOptionPress handler, and General section cards to app/(app)/(tabs)/placement.tsx.
+    - Retained full route navigation, light haptic feedback, and logger diagnostics.
+    - Verified full TypeScript compilation: npx tsc --noEmit (0 errors).
+    - Verified lint: npm run lint (0 errors).
+    - Created docs/move-general-option-to-placement-studio.md and learning/38-ota-updates-and-navigation-restructuring.md.
+    - Prepared for Over-The-Air (OTA) deployment via EAS Update preview channel.
+
+  [2026-09-03 12:05:00.000] [ERROR] [UI_LIST_KEY] Warning: Each child in a list should have a unique "key" prop.
+    - Origin: app/(app)/alumni/support.tsx:147 inside SupportScreen -> ScrollView -> tickets.map
+    - Root Cause: SupportScreen rendered ticket cards using `key={ticket._id}`. When tickets returned from the API lacked an `_id` field (e.g. returned `id` instead or missing `_id`), every child in the list received `key={undefined}`, triggering React's list reconciliation key warning in ScrollView.
+    - Resolution: Updated `Ticket` interface with optional `_id?: string; id?: string;`, strengthened `fetchTickets` array extraction to handle nested envelope responses, and assigned a robust composite key `key={ticket._id || ticket.id ? `${ticket._id || ticket.id}-${index}` : `ticket-${index}`}` that is guaranteed to be unique across all records. Also added defensive validation to `ticket.createdAt` date rendering.
+    - Verification: `npx tsc --noEmit` passed with 0 errors. `npm run lint` passed with 0 errors. Status: RESOLVED.
+
+  [2026-09-03 12:10:00.000] [ERROR] [UI_MODAL_LAYOUT] New Ticket sheet stuck in bottom of screen & obscured by soft keyboard.
+    - Origin: app/(app)/alumni/support.tsx:182 inside SupportScreen Create Ticket UI
+    - Root Cause: The Create Ticket sheet was implemented as a conditional in-flow `<View className="flex-1 ...">` rendered adjacent to the tickets `<ScrollView>` inside the parent `<SafeAreaView>`. Because it was not a true overlay modal, the ticket list and the form competed for vertical flex space, crushing the form into the bottom 30% of the screen. Furthermore, it lacked `<KeyboardAvoidingView>` and backdrop dismissal, causing software keyboards to completely occlude the input fields.
+    - Resolution: Converted the Create Ticket sheet into a true React Native `<Modal visible={showCreate} transparent animationType="slide" statusBarTranslucent>`, wrapped in `<KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>`, added a touchable backdrop dismiss area, set generous content padding (`paddingBottom: 40`), and applied `className="flex-1"` to the main tickets list.
+    - Verification: `npx tsc --noEmit` passed with 0 errors. `npm run lint` passed with 0 errors. Status: RESOLVED.

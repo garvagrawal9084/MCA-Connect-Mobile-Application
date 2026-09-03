@@ -135,10 +135,13 @@ To ensure remote push tokens are issued by Google Play Services in your standalo
 4. Select **Android** > **Push Notifications** > **FCM V1 service account key**, and upload the private key.
 
 ### Step 3: Build Standalone APK
-Build triggered with EAS:
-```bash
-npx eas-cli build -p android --profile preview --no-wait
-```
-Live Build Link: https://expo.dev/accounts/scisteam/projects/SCIS-CONNECT/builds/ee4e756b-88f5-42e7-9a70-31bc7c79a9f9
+1. **Local Release Build (Offline Standalone APK — No Queue):**
+   - Built natively with Android Gradle `assembleRelease` and Android Studio JBR 21.
+   - Output Path: [`/Users/garvagrawal/Documents/Coding/MCA-CONNECT/SCIS-Connect-Release.apk`](file:///Users/garvagrawal/Documents/Coding/MCA-CONNECT/SCIS-Connect-Release.apk) (also copied to `SCIS-Connect.apk`).
+   - File Size: 87 MB.
+   - Embedded Offline JavaScript: `assets/index.android.bundle` included inside the APK (runs fully offline without needing Metro dev server).
+   - Firebase Native Integration: Fully embedded via `com.google.gms.google-services` and `google-services.json`.
+2. **EAS Cloud Build (In Queue):**
+   - Live Build Link: https://expo.dev/accounts/scisteam/projects/SCIS-CONNECT/builds/1d4ca0a9-2357-4e5d-8ec7-6dd90b3507fd
 
 All standalone builds now initialize Firebase natively on cold boot and register device push tokens with the backend upon student login!

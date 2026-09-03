@@ -8,6 +8,10 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -19,7 +23,8 @@ import { apiClient } from "@/services/api";
 import { logger } from "@/utils/logger";
 
 interface Ticket {
-  _id: string;
+  _id?: string;
+  id?: string;
   subject: string;
   message: string;
   status: string;
@@ -46,7 +51,12 @@ export default function SupportScreen() {
       const response = await apiClient.get("/api/support-tickets/my");
       const data = response.data as Record<string, unknown>;
       const result = data as any;
-      setTickets(result?.data?.tickets || result?.tickets || []);
+      const rawTickets =
+        result?.data?.tickets ||
+        result?.tickets ||
+        (Array.isArray(result?.data) ? result.data : []) ||
+        (Array.isArray(result) ? result : []);
+      setTickets(Array.isArray(rawTickets) ? rawTickets : []);
     } catch (err) {
       logger.error("SUPPORT", "Failed to fetch tickets", err);
     } finally {
@@ -125,6 +135,7 @@ export default function SupportScreen() {
 
       {/* Tickets */}
       <ScrollView
+        className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#8B0000" />}
@@ -143,70 +154,153 @@ export default function SupportScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          tickets.map((ticket, index) => (
-            <Animated.View key={ticket._id} entering={FadeInDown.delay(index * 60).duration(280).springify().damping(20)}>
-              <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-xs">
-                <View className="flex-row items-start justify-between mb-2">
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white flex-1 mr-2" numberOfLines={1}>{ticket.subject}</Text>
-                  <View className={`px-2 py-0.5 rounded-full ${getStatusColor(ticket.status)}`}>
-                    <Text className="text-[9px] font-bold">{ticket.status || "Open"}</Text>
+          tickets.map((ticket, index) => {
+            const ticketKey = ticket._id || ticket.id ? `${ticket._id || ticket.id}-${index}` : `ticket-${index}`;
+            return (
+              <Animated.View key={ticketKey} entering={FadeInDown.delay(index * 60).duration(280).springify().damping(20)}>
+                <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-xs">
+                  <View className="flex-row items-start justify-between mb-2">
+                    <Text className="text-sm font-bold text-slate-900 dark:text-white flex-1 mr-2" numberOfLines={1}>{ticket.subject}</Text>
+                    <View className={`px-2 py-0.5 rounded-full ${getStatusColor(ticket.status)}`}>
+                      <Text className="text-[9px] font-bold">{ticket.status || "Open"}</Text>
+                    </View>
+                  </View>
+                  <Text className="text-xs text-slate-500 mb-2" numberOfLines={2}>{ticket.message}</Text>
+                  <View className="flex-row items-center justify-between">
+                    <View className="bg-slate-50 dark:bg-slate-800/50 rounded-full px-2 py-0.5">
+                      <Text className="text-[9px] font-bold text-slate-500">{ticket.category || "General"}</Text>
+                    </View>
+                    <Text className="text-[10px] text-slate-400">
+                      {ticket.createdAt && !isNaN(new Date(ticket.createdAt).getTime())
+                        ? new Date(ticket.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                        : "Recent"}
+                    </Text>
                   </View>
                 </View>
-                <Text className="text-xs text-slate-500 mb-2" numberOfLines={2}>{ticket.message}</Text>
-                <View className="flex-row items-center justify-between">
-                  <View className="bg-slate-50 dark:bg-slate-800/50 rounded-full px-2 py-0.5">
-                    <Text className="text-[9px] font-bold text-slate-500">{ticket.category || "General"}</Text>
-                  </View>
-                  <Text className="text-[10px] text-slate-400">
-                    {new Date(ticket.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
-          ))
+              </Animated.View>
+            );
+          })
         )}
       </ScrollView>
 
       {/* Create Ticket Modal */}
-      {showCreate && (
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="bg-white dark:bg-slate-900 rounded-t-[32px] max-h-[85%] border-t border-slate-200 dark:border-slate-800 shadow-2xl">
-            <View className="items-center pt-3 pb-2">
-              <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full" />
-            </View>
-            <View className="flex-row items-center justify-between px-5 pb-3 border-b border-slate-100 dark:border-slate-800">
-              <TouchableOpacity onPress={() => setShowCreate(false)}>
-                <Text className="text-xs font-bold text-slate-500">Cancel</Text>
-              </TouchableOpacity>
-              <Text className="text-sm font-bold text-slate-900 dark:text-white">New Ticket</Text>
-              <TouchableOpacity onPress={handleSubmit} disabled={isSubmitting}>
-                <Text className={`text-xs font-bold ${isSubmitting ? "text-slate-400" : "text-red-800"}`}>
-                  {isSubmitting ? "Sending..." : "Submit"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView className="px-5 pt-4 pb-8" showsVerticalScrollIndicator={false}>
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Category</Text>
-              <View className="flex-row flex-wrap gap-2 mb-4">
-                {CATEGORIES.map((c) => (
-                  <TouchableOpacity key={c} onPress={() => setCategory(c)}
-                    className={`px-3 py-1.5 rounded-full ${category === c ? "bg-red-800" : "bg-slate-100 dark:bg-slate-800"}`}>
-                    <Text className={`text-xs font-semibold ${category === c ? "text-white" : "text-slate-600 dark:text-slate-300"}`}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
+      <Modal
+        visible={showCreate}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreate(false)}
+        statusBarTranslucent
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1"
+        >
+          <View className="flex-1 bg-black/60 justify-end">
+            <TouchableWithoutFeedback onPress={() => setShowCreate(false)}>
+              <View className="flex-1" />
+            </TouchableWithoutFeedback>
+
+            <View className="bg-white dark:bg-slate-900 rounded-t-[32px] max-h-[88%] border-t border-slate-200/80 dark:border-slate-800 shadow-2xl">
+              {/* Drag Indicator */}
+              <View className="items-center pt-3 pb-2">
+                <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full" />
               </View>
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Subject</Text>
-              <TextInput className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4" placeholder="Brief description" placeholderTextColor="#94A3B8" value={subject} onChangeText={setSubject} />
-              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Message</Text>
-              <TextInput className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4" placeholder="Describe your issue in detail" placeholderTextColor="#94A3B8" value={message} onChangeText={setMessage} multiline numberOfLines={4} textAlignVertical="top" style={{ minHeight: 100 }} />
-              <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} disabled={isSubmitting}
-                className={`py-3.5 rounded-2xl items-center shadow-md ${isSubmitting ? "bg-slate-400" : "bg-red-800"}`}>
-                <Text className="text-white font-bold text-sm">{isSubmitting ? "Submitting..." : "Submit Ticket"}</Text>
-              </TouchableOpacity>
-            </ScrollView>
+
+              {/* Sheet Header */}
+              <View className="flex-row items-center justify-between px-5 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <TouchableOpacity onPress={() => setShowCreate(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text className="text-xs font-bold text-slate-500 dark:text-slate-400">Cancel</Text>
+                </TouchableOpacity>
+                <Text className="text-sm font-bold text-slate-900 dark:text-white">New Ticket</Text>
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text className={`text-xs font-bold ${isSubmitting ? "text-slate-400" : "text-red-800 dark:text-red-400"}`}>
+                    {isSubmitting ? "Sending..." : "Submit"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Scrollable Form */}
+              <ScrollView
+                className="px-5 pt-4"
+                contentContainerStyle={{ paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Category</Text>
+                <View className="flex-row flex-wrap gap-2 mb-4">
+                  {CATEGORIES.map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setCategory(c);
+                      }}
+                      className={`px-3 py-1.5 rounded-full ${
+                        category === c
+                          ? "bg-red-800"
+                          : "bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60"
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${
+                          category === c ? "text-white" : "text-slate-600 dark:text-slate-300"
+                        }`}
+                      >
+                        {c}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Subject</Text>
+                <TextInput
+                  className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4"
+                  placeholder="Brief description"
+                  placeholderTextColor="#94A3B8"
+                  value={subject}
+                  onChangeText={setSubject}
+                  returnKeyType="next"
+                />
+
+                <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Message</Text>
+                <TextInput
+                  className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-6"
+                  placeholder="Describe your issue in detail"
+                  placeholderTextColor="#94A3B8"
+                  value={message}
+                  onChangeText={setMessage}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  style={{ minHeight: 110 }}
+                />
+
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  activeOpacity={0.85}
+                  disabled={isSubmitting}
+                  className={`py-3.5 rounded-2xl items-center justify-center shadow-md mb-4 ${
+                    isSubmitting ? "bg-slate-400 dark:bg-slate-700" : "bg-red-800"
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <View className="flex-row items-center">
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <Text className="text-white font-bold text-sm ml-2">Submitting...</Text>
+                    </View>
+                  ) : (
+                    <Text className="text-white font-bold text-sm">Submit Ticket</Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      )}
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }

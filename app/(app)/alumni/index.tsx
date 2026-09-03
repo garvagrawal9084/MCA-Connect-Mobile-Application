@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -175,32 +175,6 @@ export default function AlumniDirectoryScreen() {
             onPress={() => navigate("/(app)/alumni/community")}
           />
         </View>
-
-        {/* General Section */}
-        <Animated.View entering={FadeInDown.delay(400).duration(280).springify().damping(20)} className="px-4 mt-2 mb-4">
-          <Text className="text-sm font-bold text-slate-900 dark:text-white mb-3">General</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {[
-              { title: "Profile", icon: "person-outline", color: "#8B0000", bgColor: "bg-red-50 dark:bg-red-950/60", borderColor: "border-red-200/80 dark:border-red-800/80", path: "/(app)/alumni/profile" },
-              { title: "Forums", icon: "chatbubbles-outline", color: "#7C3AED", bgColor: "bg-purple-50 dark:bg-purple-950/60", borderColor: "border-purple-200/80 dark:border-purple-800/80", path: "/(app)/alumni/community" },
-              { title: "Support", icon: "help-circle-outline", color: "#0369A1", bgColor: "bg-blue-50 dark:bg-blue-950/60", borderColor: "border-blue-200/80 dark:border-blue-800/80", path: "/(app)/alumni/support" },
-              { title: "Contact Us", icon: "mail-outline", color: "#059669", bgColor: "bg-emerald-50 dark:bg-emerald-950/60", borderColor: "border-emerald-200/80 dark:border-emerald-800/80", path: "/(app)/alumni/contact" },
-            ].map((item) => (
-              <TouchableOpacity
-                key={item.title}
-                activeOpacity={0.7}
-                onPress={() => navigate(item.path)}
-                className={`w-[48%] flex-row items-center ${item.bgColor} ${item.borderColor} border rounded-2xl p-3 shadow-xs`}
-              >
-                <View className={`w-9 h-9 rounded-xl ${item.bgColor} items-center justify-center mr-2.5`}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
-                </View>
-                <Text className="text-xs font-bold text-slate-900 dark:text-white flex-1" numberOfLines={1}>{item.title}</Text>
-                <Ionicons name="chevron-forward" size={13} color="#94A3B8" />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

@@ -17,6 +17,10 @@ const isExpoGo =
   Constants.appOwnership === "expo";
 
 let activeExpoPushToken: string | null = null;
+let inFlightRegistrationPromise: Promise<string | null> | null = null;
+let lastRegisteredToken: string | null = null;
+let lastRegisteredAccessToken: string | null = null;
+let isRegisteringWithBackend = false;
 
 export function getActiveExpoPushToken(): string | null {
   return activeExpoPushToken;
@@ -170,86 +174,98 @@ export async function requestNotificationPermissionsWithPrompt(): Promise<boolea
 export async function registerForPushNotificationsAsync(
   tokenOverride?: string
 ): Promise<string | null> {
-  try {
-    // 1. Android Channel registration
-    await setupAndroidNotificationChannels();
-
-    if (!Device.isDevice) {
-      logger.info("NOTIFICATIONS", "Simulator/Emulator detected - local notifications active");
-    }
-
-    // 2. Notification Permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-        },
-      });
-      finalStatus = status;
-    }
-
-    if (finalStatus !== "granted") {
-      logger.warn(
-        "NOTIFICATIONS",
-        `Notification permission status is '${finalStatus}'. Remote push token registration deferred until permission is granted.`
-      );
-      return null;
-    }
-
-    // 3. Obtain the Expo push token (development build, standalone APK, or Expo Go with EAS project)
-    try {
-      const projectId =
-        Constants.expoConfig?.extra?.eas?.projectId ??
-        Constants.easConfig?.projectId ??
-        "97969023-a829-43e7-8bf0-00ad4847726a";
-
-      if (!projectId) {
-        logger.error("NOTIFICATIONS", "EAS project ID is missing; push token cannot be created");
-        return null;
-      }
-
-      logger.info("NOTIFICATIONS", `Requesting Expo Push Token with EAS projectId: ${projectId}`);
-      const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-      const token = pushTokenData.data;
-
-      if (!token || (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken["))) {
-        logger.warn("NOTIFICATIONS", `Unexpected push token format received: ${token}`);
-        return null;
-      }
-
-      activeExpoPushToken = token;
-      logger.info("NOTIFICATIONS", `Acquired Expo Push Token: ${token}`);
-
-      // Check if user is currently authenticated with a valid Bearer token
-      const accessToken = tokenOverride || storageService.getAccessToken();
-      if (!accessToken) {
-        logger.info(
-          "NOTIFICATIONS",
-          "Acquired Expo push token, but user is not logged in yet. Device registration will execute immediately upon login."
-        );
-        return token;
-      }
-
-      // Register token with backend
-      await registerTokenWithBackend(token, accessToken);
-      return token;
-    } catch (tokenErr) {
-      logger.error(
-        "NOTIFICATIONS",
-        "Failed to acquire Expo Push Token. In standalone Android APK builds, Firebase Cloud Messaging (google-services.json) and EAS FCM V1 credentials must be configured.",
-        tokenErr
-      );
-      return null;
-    }
-  } catch (error) {
-    logger.error("NOTIFICATIONS", "Error during notification registration", error);
-    return null;
+  // If a registration is already executing, reuse the in-flight Promise
+  if (inFlightRegistrationPromise) {
+    logger.debug("NOTIFICATIONS", "Push registration already in-flight, returning active promise");
+    return inFlightRegistrationPromise;
   }
+
+  inFlightRegistrationPromise = (async () => {
+    try {
+      // 1. Android Channel registration
+      await setupAndroidNotificationChannels();
+
+      if (!Device.isDevice) {
+        logger.info("NOTIFICATIONS", "Simulator/Emulator detected - local notifications active");
+      }
+
+      // 2. Notification Permissions
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+        });
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        logger.warn(
+          "NOTIFICATIONS",
+          `Notification permission status is '${finalStatus}'. Remote push token registration deferred until permission is granted.`
+        );
+        return null;
+      }
+
+      // 3. Obtain the Expo push token (development build, standalone APK, or Expo Go with EAS project)
+      try {
+        const projectId =
+          Constants.expoConfig?.extra?.eas?.projectId ??
+          Constants.easConfig?.projectId ??
+          "97969023-a829-43e7-8bf0-00ad4847726a";
+
+        if (!projectId) {
+          logger.error("NOTIFICATIONS", "EAS project ID is missing; push token cannot be created");
+          return null;
+        }
+
+        logger.info("NOTIFICATIONS", `Requesting Expo Push Token with EAS projectId: ${projectId}`);
+        const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+        const token = pushTokenData.data;
+
+        if (!token || (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken["))) {
+          logger.warn("NOTIFICATIONS", `Unexpected push token format received: ${token}`);
+          return null;
+        }
+
+        activeExpoPushToken = token;
+        logger.info("NOTIFICATIONS", `Acquired Expo Push Token: ${token}`);
+
+        // Check if user is currently authenticated with a valid Bearer token
+        const accessToken = tokenOverride || storageService.getAccessToken();
+        if (!accessToken) {
+          logger.info(
+            "NOTIFICATIONS",
+            "Acquired Expo push token, but user is not logged in yet. Device registration will execute immediately upon login."
+          );
+          return token;
+        }
+
+        // Register token with backend (deduplicated)
+        await registerTokenWithBackend(token, accessToken);
+        return token;
+      } catch (tokenErr) {
+        logger.error(
+          "NOTIFICATIONS",
+          "Failed to acquire Expo Push Token. In standalone Android APK builds, Firebase Cloud Messaging (google-services.json) and EAS FCM V1 credentials must be configured.",
+          tokenErr
+        );
+        return null;
+      }
+    } catch (error) {
+      logger.error("NOTIFICATIONS", "Error during notification registration", error);
+      return null;
+    } finally {
+      inFlightRegistrationPromise = null;
+    }
+  })();
+
+  return inFlightRegistrationPromise;
 }
 
 /**
@@ -260,6 +276,21 @@ export async function registerTokenWithBackend(
   tokenOverride?: string
 ): Promise<boolean> {
   if (!token) return false;
+
+  const accessToken = tokenOverride || storageService.getAccessToken();
+
+  // Deduplication: prevent duplicate registrations for the same active session
+  if (lastRegisteredToken === token && lastRegisteredAccessToken === accessToken) {
+    logger.debug("NOTIFICATIONS", "Device already registered with backend for this session, skipping duplicate call");
+    return true;
+  }
+
+  if (isRegisteringWithBackend) {
+    logger.debug("NOTIFICATIONS", "Backend device registration call already in progress, skipping concurrent duplicate");
+    return true;
+  }
+
+  isRegisteringWithBackend = true;
 
   const payload = {
     pushToken: token,
@@ -273,6 +304,8 @@ export async function registerTokenWithBackend(
   try {
     const res = await notificationsApi.registerDevice(payload, tokenOverride);
     if (res.success || (res.statusCode && res.statusCode < 400)) {
+      lastRegisteredToken = token;
+      lastRegisteredAccessToken = accessToken;
       logger.info("NOTIFICATIONS", "Successfully registered push token with backend", {
         registeredDevices: res.data?.registeredDevices,
         platform: payload.platform,
@@ -284,11 +317,15 @@ export async function registerTokenWithBackend(
   } catch (err) {
     logger.error("NOTIFICATIONS", "Error registering push token with backend", err);
     return false;
+  } finally {
+    isRegisteringWithBackend = false;
   }
 }
 
 /** Remove this phone from the signed-in account before clearing auth state. */
 export async function unregisterPushNotificationsAsync(): Promise<void> {
+  lastRegisteredToken = null;
+  lastRegisteredAccessToken = null;
   if (!activeExpoPushToken) return;
   try {
     await notificationsApi.unregisterDevice(activeExpoPushToken);
