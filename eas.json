@@ -6,7 +6,11 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx4096m -XX:MaxMetaspaceSize=1024m\""
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -16,11 +20,19 @@
       },
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx4096m -XX:MaxMetaspaceSize=1024m\""
       }
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx4096m -XX:MaxMetaspaceSize=1024m\""
+      }
     }
   },
   "submit": {

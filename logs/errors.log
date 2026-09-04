@@ -246,3 +246,21 @@
     - Implemented handleDownloadCertificateToGallery capturing high-DPI view via captureRef and saving to device gallery via MediaLibrary.saveToLibraryAsync with runtime permission prompts and haptic notifications.
     - Verified TypeScript build: npx tsc --noEmit (0 errors).
     - Created docs/certificate-gallery-download-implementation.md and learning/42-view-shot-and-media-library-gallery-export.md.
+
+  [2026-09-03 12:43:00.000] [INFO]  [ASSET_AND_FILE_CLEANUP] Conducted in-depth project audit and safely removed redundant assets & files:
+    - Removed unused Expo default images: favicon.png, icon.png, splash-icon.png, android-icon-foreground.png from assets/images/.
+    - Cleaned up constants/images.ts to cleanly import and export only active branding (logo).
+    - Preserved essential brand and build assets: logo.png (app icon, splash, notifications, favicon), android-icon-background.png (adaptive background layer), and android-icon-monochrome.png (Android 13+ themed icon).
+    - Removed deprecated mock data stub features/placement/mockData.ts (empty export {};).
+    - Removed obsolete under-construction modal components/home/AlumniCommunityModal.tsx (replaced by full alumni module in app/(app)/alumni/).
+    - Removed temporary web export build directory dist/ (~500KB).
+    - Created docs/cleanup-unused-assets-and-files.md and updated learning/22-app-branding-and-asset-management.md.
+    - Verified compilation: npx tsc --noEmit (0 errors), npm run lint (0 errors).
+
+  [2026-09-03 21:15:00.000] [ERROR] [EAS_GRADLE_BUILD_DAEMON_CRASH] Error: Gradle build failed with unknown error. Could not receive a message from the daemon.
+    - Build ID: 096c5e6f-294a-4d7a-8567-d744f4fa61b4 (Android production/store profile, git commit bd1bd2e)
+    - Root Cause: Expo EAS Build's internal Maven Artifactory cache (http://maven.production.caches.eas-build.internal/artifactory/libs-release/...) experienced high latency/outage, returning "HTTP 504 Gateway Timeout" for 35+ core POMs (jakarta.activation-api, FastInfoset, kotlin-stdlib, etc.). Gradle hung waiting for socket connections for over 7 minutes until the daemon communication was terminated abruptly.
+    - Resolution: Configured EAS_BUILD_DISABLE_MAVEN_CACHE="1" across all profiles in eas.json to bypass Expo's internal Artifactory cache and fetch dependencies directly from upstream Maven Central / Google repositories. Configured GRADLE_OPTS with expanded JVM heap (-Xmx4096m -XX:MaxMetaspaceSize=1024m) to ensure the daemon has ample memory.
+    - Verification: TypeScript (npx tsc --noEmit: 0 errors), ESLint (npm run lint: 0 errors), eas.json verified valid JSON schema.
+
+
