@@ -4,6 +4,7 @@
 
 export const API_CONFIG = {
   BASE_URL: "https://mca-connect-backend-production.up.railway.app",
+  WEB_URL: "https://scisconnect.up.railway.app",
   TIMEOUT_MS: 15000,
   ENDPOINTS: {
     AUTH: {
@@ -91,6 +92,12 @@ export const API_CONFIG = {
       MY: "/api/certificates/my",
       BY_CHALLENGE: (challengeId: string) => `/api/certificates/challenge/${challengeId}`,
       VERIFY: (serial: string) => `/api/certificates/verify/${serial}`,
+      VERIFY_WEB: (serial: string) =>
+        `https://scisconnect.up.railway.app/certificate/verify/${encodeURIComponent(serial)}`,
+    },
+    CONTACT: {
+      SUBMIT: "/api/contact",
+      MY_MESSAGES: "/api/contact/my",
     },
   },
 } as const;

@@ -1487,7 +1487,13 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
           </View>
         ) : hasLiveCertificates ? (
           liveCertificates.map((cert) => {
-            const verifyUrl = `${API_CONFIG.BASE_URL}/api/certificates/verify/${cert.serial}`;
+            const serial = (cert.serial || cert.id || cert._id || "").trim();
+            const verifyUrl =
+              cert.verificationUrl &&
+              cert.verificationUrl.startsWith("http") &&
+              !cert.verificationUrl.includes("/api/certificates/verify")
+                ? cert.verificationUrl
+                : API_CONFIG.ENDPOINTS.CERTIFICATES.VERIFY_WEB(serial);
             return (
               <View
                 key={cert._id || cert.id || cert.serial}
@@ -1544,9 +1550,21 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                 <View className="flex-row items-center justify-between pt-2">
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={() => {
+                    onPress={async () => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      openExternalUrl(verifyUrl);
+                      if (!serial) {
+                        Alert.alert(
+                          "Verification Unavailable",
+                          "Certificate serial number is not available for this credential."
+                        );
+                        return;
+                      }
+                      logger.info(
+                        "CERTIFICATES_UI",
+                        `Opening certificate verification for serial: ${serial}`,
+                        { verifyUrl }
+                      );
+                      await openExternalUrl(verifyUrl, { preferInApp: true });
                     }}
                     className="flex-row items-center py-1 pr-3"
                   >
@@ -2071,12 +2089,31 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                   {/* Footer Row */}
                   <View className="flex-row items-end justify-between pt-1">
                     {/* Left: QR Verification Box */}
-                    <View className="items-center z-10">
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={async () => {
+                        const serial = (selectedCertificateForPreview.serial || "").trim();
+                        if (serial) {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          const verifyUrl =
+                            API_CONFIG.ENDPOINTS.CERTIFICATES.VERIFY_WEB(serial);
+                          logger.info(
+                            "CERTIFICATES_UI",
+                            `Opening certificate verification from preview modal for serial: ${serial}`,
+                            { verifyUrl }
+                          );
+                          await openExternalUrl(verifyUrl, { preferInApp: true });
+                        }
+                      }}
+                      className="items-center z-10"
+                    >
                       <View className="w-13 h-13 bg-white rounded-lg p-1 border border-slate-200 items-center justify-center shadow-xs">
                         <Image
                           source={{
                             uri: `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
-                              `${API_CONFIG.BASE_URL}/api/certificates/verify/${selectedCertificateForPreview.serial}`
+                              API_CONFIG.ENDPOINTS.CERTIFICATES.VERIFY_WEB(
+                                (selectedCertificateForPreview.serial || "").trim()
+                              )
                             )}`,
                           }}
                           style={{ width: 44, height: 44 }}
@@ -2086,7 +2123,7 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                       <Text className="text-[7px] text-slate-500 font-semibold mt-0.5">
                         Scan to verify
                       </Text>
-                    </View>
+                    </TouchableOpacity>
 
                     {/* Center: Verified Stamp */}
                     <View className="items-center">

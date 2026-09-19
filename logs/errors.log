@@ -263,4 +263,46 @@
     - Resolution: Configured EAS_BUILD_DISABLE_MAVEN_CACHE="1" across all profiles in eas.json to bypass Expo's internal Artifactory cache and fetch dependencies directly from upstream Maven Central / Google repositories. Configured GRADLE_OPTS with expanded JVM heap (-Xmx4096m -XX:MaxMetaspaceSize=1024m) to ensure the daemon has ample memory.
     - Verification: TypeScript (npx tsc --noEmit: 0 errors), ESLint (npm run lint: 0 errors), eas.json verified valid JSON schema.
 
-
+  [2026-09-19 05:10:00.000] [ERROR] [CONTACT_API_CATEGORY_ERROR] HTTP 400 Bad Request: "Category is required" on POST /api/contact.
+    - Origin: app/(app)/alumni/contact.tsx:33 inside ContactScreen handleSubmit.
+    - Root Cause: The Contact form submitted only `{ subject, message }` without `category`. The backend endpoint `/api/contact` strictly requires `category` matching a backend enum (`General Query`, `Bug Report`, `Feature Request`, `Challenge Issue`, `Leaderboard Issue`, `Profile Issue`, `Account Issue`, `Placement Related`, `Other`), and also enforces `minLength: 20` characters on `message`. Tapping "Send Message" triggered an unhandled 400 rejection and displayed a generic failure alert.
+    - Resolution:
+      1. Added `CONTACT_CATEGORIES` list and `ContactCategory` type matching the exact 9 valid categories supported by the backend.
+      2. Added category selector chips in the UI with light haptic feedback (`Haptics.impactAsync`).
+      3. Added character count indicator (`${message.length}/2000`) and client-side threshold warning (`message.length < 20`).
+      4. Updated `handleSubmit` to pass `{ subject: cleanSubject, category, message: cleanMessage, source: "mobile" }`.
+      5. Enhanced error handling to surface dynamic backend `ApiError` messages.
+      6. Wrapped form container in `KeyboardAvoidingView` with `keyboardShouldPersistTaps="handled"` and `TouchableWithoutFeedback` keyboard dismiss.
+      7. Registered `API_CONFIG.ENDPOINTS.CONTACT` (`SUBMIT` and `MY_MESSAGES`) in `constants/config.ts`.
+    - Verification:
+      - Live API: verified `POST /api/contact` returns `200 OK` ("Message sent successfully. Our team will get back to you soon.") and confirmed persistence via `GET /api/contact/my`.
+      - TypeScript: `npx tsc --noEmit` passed with 0 errors.
+  [2026-09-19 05:18:00.000] [ERROR] [CONTACT_UI_KEYBOARD_OCCLUSION] Message TextInput occluded by software keyboard when typing.
+    - Origin: app/(app)/alumni/contact.tsx inside ContactScreen ScrollView.
+    - Root Cause:
+      1. `KeyboardAvoidingView` was configured with `behavior={Platform.OS === "ios" ? "padding" : undefined}`, performing no viewport or height compensation on Android devices.
+      2. `TouchableWithoutFeedback` wrapping `<ScrollView>` interfered with Android touch responder and gesture scrolling.
+      3. The bottom padding on `contentContainerStyle` was only 36px, preventing users from scrolling past the tall software keyboard (300-350px).
+      4. Missing auto-scrolling on input focus caused the multiline message box to stay concealed under the keyboard.
+    - Resolution:
+      1. Configured `behavior={Platform.OS === "ios" ? "padding" : "height"}` and `keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 25}`.
+      2. Removed outer `TouchableWithoutFeedback` and added native `keyboardDismissMode="on-drag"` and `keyboardShouldPersistTaps="handled"`.
+      3. Added active `keyboardVisible` listener and set `paddingBottom: keyboardVisible ? 280 : 40` with `flexGrow: 1`.
+      4. Added `scrollViewRef` with `onFocus` auto-scrolling (`scrollToEnd({ animated: true })` for Message, `scrollTo({ y: 140 })` for Subject).
+      5. Added a quick "Done" keyboard dismissal button in the header when keyboard is visible.
+      6. Explicitly set adaptive high-contrast font colors (`isDark ? "#FFFFFF" : "#0F172A"`).
+  [2026-09-19 05:47:00.000] [ERROR] [CERTIFICATE_VERIFICATION_URL_FIX] Verify action in Placement -> My Certificates targeted backend JSON API instead of web verification UI.
+    - Origin: components/placement/PlacementDetailModal.tsx:1490 & 2079.
+    - Root Cause:
+      1. The "Verify" action link and certificate QR code were hardcoded to `${API_CONFIG.BASE_URL}/api/certificates/verify/${cert.serial}`. `BASE_URL` points to the Railway Express backend (`https://mca-connect-backend-production.up.railway.app`), which serves only raw REST JSON (`{"success":false,"message":"Certificate not found"}`) rather than an HTML/React user interface.
+      2. Tapping "Verify" opened external device browser rather than in-app browser overlay, disrupting the student mobile workflow.
+    - Resolution:
+      1. Added `WEB_URL: "https://scisconnect.up.railway.app"` and `VERIFY_WEB: (serial) => ...` to `API_CONFIG` in `constants/config.ts`.
+      2. Updated `PlacementDetailModal.tsx` `renderCertificatesContent` to compute canonical public verification URL pointing to `https://scisconnect.up.railway.app/certificate/verify/${encodeURIComponent(serial)}`.
+      3. Integrated in-app browser display (`openExternalUrl(verifyUrl, { preferInApp: true })`) with SCIS crimson theme toolbar (`#8B0000`).
+      4. Updated Certificate Preview Modal QR code generator to encode the public web verification URL so physical or exported PNG scans land directly on the verified certificate page.
+      5. Made QR code box inside the preview modal tap-interactive to allow direct in-app verification.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors.
+      - Linting (`npm run lint`): 0 errors.
+      - Tested public web route `https://scisconnect.up.railway.app/certificate/verify/:serial` returns HTTP 200. Status: RESOLVED.
