@@ -2,12 +2,11 @@
   "expo": {
     "name": "SCIS-CONNECT",
     "slug": "SCIS-CONNECT",
-    "version": "1.0.2",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "scisconnect",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.scis.connect"
@@ -21,7 +20,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
@@ -67,7 +65,11 @@
           "photosPermission": "Allow SCIS Connect to save your verified certificates to your photo gallery.",
           "savePhotosPermission": "Allow SCIS Connect to save your verified certificates to your photo gallery."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

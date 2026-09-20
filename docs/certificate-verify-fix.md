@@ -34,25 +34,11 @@ This update directs students and external scanners to the official SCIS Connect 
 
 ### 2. UI Component Enhancement (`components/placement/PlacementDetailModal.tsx`)
 
-#### A. Certificate Card "Verify" Link (`renderCertificatesContent`)
-- **Safe Serial Extraction**: Extracts certificate serial defending against incomplete envelopes:
-  ```typescript
-  const serial = (cert.serial || cert.id || cert._id || "").trim();
-  ```
-- **Canonical Verification URL Formulation**:
-  ```typescript
-  const verifyUrl =
-    cert.verificationUrl &&
-    cert.verificationUrl.startsWith("http") &&
-    !cert.verificationUrl.includes("/api/certificates/verify")
-      ? cert.verificationUrl
-      : API_CONFIG.ENDPOINTS.CERTIFICATES.VERIFY_WEB(serial);
-  ```
-- **In-App Browser Launch**:
-  - Validates `serial` presence before firing network requests.
-  - Emits diagnostic logger events under domain `CERTIFICATES_UI`.
-  - Dispatches haptic feedback (`Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)`).
-  - Uses `openExternalUrl(verifyUrl, { preferInApp: true })` to display the verified certificate directly in an in-app Safari / Chrome overlay styled with `#8B0000` toolbar color.
+#### A. Certificate Card Action Streamlining (`renderCertificatesContent`)
+- **Direct Download Action**:
+  - Streamlined the certificate card footer to feature a clean, right-aligned "Download" action button.
+  - Removed the redundant "Verify" button from the card list since students can directly tap "Download" to open the high-fidelity Certificate Preview Modal (which includes the recipient details, stats, verified badge, and scan-to-verify QR code).
+  - Tapping "Download" allows immediate inspection on the preview canvas and high-resolution PNG export directly into the device's photo gallery.
 
 #### B. Certificate Preview Modal & PNG Export Canvas
 - **QR Code Verification URL**:

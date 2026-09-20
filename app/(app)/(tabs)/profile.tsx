@@ -18,6 +18,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { NotificationSettingsModal } from "@/components/notifications/NotificationSettingsModal";
+import { EditBioModal } from "@/components/profile/EditBioModal";
+import { EditContactModal } from "@/components/profile/EditContactModal";
+import { EditSkillsLinksModal } from "@/components/profile/EditSkillsLinksModal";
+import { EditEducationModal } from "@/components/profile/EditEducationModal";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useNotificationsStore } from "@/features/notifications/store";
 import { useProfile } from "@/features/profile/hooks";
@@ -26,9 +30,21 @@ import { logger } from "@/utils/logger";
 export default function ProfileScreen() {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
-  const { profile, isRefreshing, refreshProfile } = useProfile();
+  const {
+    profile,
+    isRefreshing,
+    refreshProfile,
+    updateProfile,
+    updateContact,
+    updateEducation,
+    updateProfessional,
+  } = useProfile();
   const [bioExpanded, setBioExpanded] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBioModalOpen, setIsBioModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
+  const [isEducationModalOpen, setIsEducationModalOpen] = useState(false);
   const masterNotificationsEnabled = useNotificationsStore(
     (state) => state.masterNotificationsEnabled
   );
@@ -341,20 +357,20 @@ export default function ProfileScreen() {
         ) : null}
 
         {/* Bio Section */}
-        {profile?.bio ? (
-          <Animated.View
-            entering={FadeInDown.delay(140).duration(260).springify().damping(20)}
-            className="mb-4"
-          >
-            <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center justify-between mb-2">
-                <View className="flex-row items-center">
-                  <Ionicons name="finger-print-outline" size={16} color="#8B0000" />
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                    About & Bio
-                  </Text>
-                </View>
-                {profile.bio.length > 180 && (
+        <Animated.View
+          entering={FadeInDown.delay(140).duration(260).springify().damping(20)}
+          className="mb-4"
+        >
+          <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center">
+                <Ionicons name="finger-print-outline" size={16} color="#8B0000" />
+                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                  About & Bio
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-2">
+                {profile?.bio && profile.bio.length > 180 && (
                   <TouchableOpacity
                     onPress={() => setBioExpanded(!bioExpanded)}
                     activeOpacity={0.7}
@@ -364,16 +380,41 @@ export default function ProfileScreen() {
                     </Text>
                   </TouchableOpacity>
                 )}
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsBioModalOpen(true);
+                  }}
+                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={12} color="#8B0000" />
+                </TouchableOpacity>
               </View>
+            </View>
+            {profile?.bio ? (
               <Text
                 numberOfLines={bioExpanded ? undefined : 4}
                 className="text-xs text-slate-600 dark:text-slate-300 leading-5"
               >
                 {profile.bio}
               </Text>
-            </Card>
-          </Animated.View>
-        ) : null}
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsBioModalOpen(true);
+                }}
+                activeOpacity={0.7}
+                className="py-2"
+              >
+                <Text className="text-xs text-slate-400 italic">
+                  Tap to add a bio and campus location...
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Card>
+        </Animated.View>
 
         {/* Skills & Technologies */}
         {skills.length > 0 ? (
@@ -382,11 +423,23 @@ export default function ProfileScreen() {
             className="mb-4"
           >
             <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="code-slash-outline" size={16} color="#8B0000" />
-                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                  Technical Skills & Stack
-                </Text>
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center">
+                  <Ionicons name="code-slash-outline" size={16} color="#8B0000" />
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                    Technical Skills & Stack
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsSkillsModalOpen(true);
+                  }}
+                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={12} color="#8B0000" />
+                </TouchableOpacity>
               </View>
               <View className="flex-row flex-wrap gap-2">
                 {skills.map((skill, index) => (
@@ -470,11 +523,23 @@ export default function ProfileScreen() {
             className="mb-4"
           >
             <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="globe-outline" size={16} color="#8B0000" />
-                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                  Coding & Professional Profiles
-                </Text>
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center">
+                  <Ionicons name="globe-outline" size={16} color="#8B0000" />
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                    Coding & Professional Profiles
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsSkillsModalOpen(true);
+                  }}
+                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={12} color="#8B0000" />
+                </TouchableOpacity>
               </View>
 
               <View className="gap-2.5">
@@ -608,11 +673,23 @@ export default function ProfileScreen() {
             className="mb-4"
           >
             <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="school-outline" size={16} color="#8B0000" />
-                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                  Academic Background
-                </Text>
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center">
+                  <Ionicons name="school-outline" size={16} color="#8B0000" />
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                    Academic Background
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsEducationModalOpen(true);
+                  }}
+                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={12} color="#8B0000" />
+                </TouchableOpacity>
               </View>
 
               <View className="gap-3">
@@ -806,11 +883,23 @@ export default function ProfileScreen() {
             className="mb-5"
           >
             <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="person-circle-outline" size={16} color="#8B0000" />
-                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                  Contact & Account Details
-                </Text>
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center">
+                  <Ionicons name="person-circle-outline" size={16} color="#8B0000" />
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                    Contact & Account Details
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsContactModalOpen(true);
+                  }}
+                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={12} color="#8B0000" />
+                </TouchableOpacity>
               </View>
 
               <View className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -939,6 +1028,58 @@ export default function ProfileScreen() {
         <NotificationSettingsModal
           visible={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
+        />
+
+        {/* Section Edit Modals */}
+        <EditBioModal
+          visible={isBioModalOpen}
+          onClose={() => setIsBioModalOpen(false)}
+          currentBio={profile?.bio}
+          currentLocation={profile?.location}
+          onSave={async (data) => {
+            const res = await updateProfile(data);
+            if (res) refreshProfile();
+            return res;
+          }}
+        />
+
+        <EditContactModal
+          visible={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
+          currentContact={profile?.contact}
+          currentPersonalEmail={profile?.personalEmail}
+          onSave={async (data) => {
+            const res = await updateContact(data);
+            if (res) refreshProfile();
+            return res;
+          }}
+        />
+
+        <EditSkillsLinksModal
+          visible={isSkillsModalOpen}
+          onClose={() => setIsSkillsModalOpen(false)}
+          currentSkills={skills}
+          currentGithub={profile?.github}
+          currentLinkedin={profile?.linkedin}
+          currentLeetcode={leetcode?.username || profile?.leetcode_profiles?.[0]?.username}
+          currentGfg={profile?.gfg}
+          currentCodeforces={profile?.codeforces}
+          onSave={async (data) => {
+            const res = await updateProfessional(data);
+            if (res) refreshProfile();
+            return res;
+          }}
+        />
+
+        <EditEducationModal
+          visible={isEducationModalOpen}
+          onClose={() => setIsEducationModalOpen(false)}
+          currentEducation={profile?.education}
+          onSave={async (data) => {
+            const res = await updateEducation(data);
+            if (res) refreshProfile();
+            return res;
+          }}
         />
 
         {/* Sign Out Button */}

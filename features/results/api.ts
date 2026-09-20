@@ -29,8 +29,11 @@ export const resultsApi = {
         API_CONFIG.ENDPOINTS.RESULTS.MY_RESULTS
       );
     } catch {
-      // Fallback in case endpoint is mounted at /api/results
-      return apiClient.get<{ results: ResultItem[] }>("/api/results");
+      try {
+        return await apiClient.get<{ results: ResultItem[] }>("/api/results/my");
+      } catch {
+        return apiClient.get<{ results: ResultItem[] }>("/api/results");
+      }
     }
   },
 
@@ -40,9 +43,15 @@ export const resultsApi = {
    */
   async getResult(id: string): Promise<ApiResponse<{ result: ResultItem }>> {
     logger.info("RESULTS_API", `Fetching single result by ID: ${id}`);
-    return apiClient.get<{ result: ResultItem }>(
-      `${API_CONFIG.ENDPOINTS.RESULTS.BASE}/${id}`
-    );
+    try {
+      return await apiClient.get<{ result: ResultItem }>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.BASE}/${id}`
+      );
+    } catch {
+      return apiClient.get<{ result: ResultItem }>(
+        `/api/assessments/results/${id}`
+      );
+    }
   },
 
   /**
@@ -73,9 +82,15 @@ export const resultsApi = {
     attemptId: string
   ): Promise<ApiResponse<{ result: ResultItem; message?: string }>> {
     logger.info("RESULTS_API", `Computing result for attempt: ${attemptId}`);
-    return apiClient.post<{ result: ResultItem; message?: string }>(
-      `${API_CONFIG.ENDPOINTS.RESULTS.COMPUTE}/${attemptId}`
-    );
+    try {
+      return await apiClient.post<{ result: ResultItem; message?: string }>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.COMPUTE}/${attemptId}`
+      );
+    } catch {
+      return apiClient.post<{ result: ResultItem; message?: string }>(
+        `/api/assessments/results/compute/${attemptId}`
+      );
+    }
   },
 
   /**
@@ -86,9 +101,15 @@ export const resultsApi = {
     id: string
   ): Promise<ApiResponse<{ result: ResultItem; message?: string }>> {
     logger.info("RESULTS_API", `Publishing result ID: ${id}`);
-    return apiClient.post<{ result: ResultItem; message?: string }>(
-      `${API_CONFIG.ENDPOINTS.RESULTS.PUBLISH}/${id}/publish`
-    );
+    try {
+      return await apiClient.post<{ result: ResultItem; message?: string }>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.PUBLISH}/${id}/publish`
+      );
+    } catch {
+      return apiClient.post<{ result: ResultItem; message?: string }>(
+        `/api/assessments/results/${id}/publish`
+      );
+    }
   },
 
   /**
@@ -99,9 +120,15 @@ export const resultsApi = {
     assessmentId: string
   ): Promise<ApiResponse<{ result: ResultItem }>> {
     logger.info("RESULTS_API", `Fetching my result for assessment: ${assessmentId}`);
-    return apiClient.get<{ result: ResultItem }>(
-      `${API_CONFIG.ENDPOINTS.RESULTS.MY_RESULT}/${assessmentId}`
-    );
+    try {
+      return await apiClient.get<{ result: ResultItem }>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.MY_RESULT}/${assessmentId}`
+      );
+    } catch {
+      return apiClient.get<{ result: ResultItem }>(
+        `/api/assessments/results/my-result/${assessmentId}`
+      );
+    }
   },
 
   /**
@@ -112,9 +139,15 @@ export const resultsApi = {
     assessmentId: string
   ): Promise<ApiResponse<{ results: ResultItem[] }>> {
     logger.info("RESULTS_API", `Fetching all attempts for assessment: ${assessmentId}`);
-    return apiClient.get<{ results: ResultItem[] }>(
-      `${API_CONFIG.ENDPOINTS.RESULTS.MY_ALL_RESULTS}/${assessmentId}`
-    );
+    try {
+      return await apiClient.get<{ results: ResultItem[] }>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.MY_ALL_RESULTS}/${assessmentId}`
+      );
+    } catch {
+      return apiClient.get<{ results: ResultItem[] }>(
+        `/api/assessments/results/my-all-results/${assessmentId}`
+      );
+    }
   },
 
   /**
@@ -125,9 +158,15 @@ export const resultsApi = {
     resultId: string
   ): Promise<ApiResponse<ResultAnalysisResponse>> {
     logger.info("RESULTS_API", `Fetching result analysis for: ${resultId}`);
-    return apiClient.get<ResultAnalysisResponse>(
-      `${API_CONFIG.ENDPOINTS.RESULTS.ANALYSIS}/${resultId}`
-    );
+    try {
+      return await apiClient.get<ResultAnalysisResponse>(
+        `${API_CONFIG.ENDPOINTS.RESULTS.ANALYSIS}/${resultId}`
+      );
+    } catch {
+      return apiClient.get<ResultAnalysisResponse>(
+        `/api/assessments/results/analysis/${resultId}`
+      );
+    }
   },
 
   /**
@@ -194,9 +233,15 @@ export const resultsApi = {
    */
   async getSpeedAnalysis(): Promise<ApiResponse<{ speed: SpeedAnalysisResponse | any }>> {
     logger.info("RESULTS_API", "Fetching student speed analysis");
-    return apiClient.get<{ speed: SpeedAnalysisResponse | any }>(
-      API_CONFIG.ENDPOINTS.RESULTS.SPEED_ANALYSIS
-    );
+    try {
+      return await apiClient.get<{ speed: SpeedAnalysisResponse | any }>(
+        API_CONFIG.ENDPOINTS.RESULTS.SPEED_ANALYSIS
+      );
+    } catch {
+      return apiClient.get<{ speed: SpeedAnalysisResponse | any }>(
+        "/api/results/speed-analysis"
+      );
+    }
   },
 
   /**
@@ -207,9 +252,15 @@ export const resultsApi = {
     ApiResponse<{ improvement: StudentImprovementResponse | any }>
   > {
     logger.info("RESULTS_API", "Fetching student improvement metrics");
-    return apiClient.get<{ improvement: StudentImprovementResponse | any }>(
-      API_CONFIG.ENDPOINTS.RESULTS.IMPROVEMENT
-    );
+    try {
+      return await apiClient.get<{ improvement: StudentImprovementResponse | any }>(
+        API_CONFIG.ENDPOINTS.RESULTS.IMPROVEMENT
+      );
+    } catch {
+      return apiClient.get<{ improvement: StudentImprovementResponse | any }>(
+        "/api/results/improvement"
+      );
+    }
   },
 
   /**
@@ -220,9 +271,15 @@ export const resultsApi = {
     ApiResponse<{ suggestions: PracticeSuggestion[] | any }>
   > {
     logger.info("RESULTS_API", "Fetching practice suggestions");
-    return apiClient.get<{ suggestions: PracticeSuggestion[] | any }>(
-      API_CONFIG.ENDPOINTS.RESULTS.SUGGESTIONS
-    );
+    try {
+      return await apiClient.get<{ suggestions: PracticeSuggestion[] | any }>(
+        API_CONFIG.ENDPOINTS.RESULTS.SUGGESTIONS
+      );
+    } catch {
+      return apiClient.get<{ suggestions: PracticeSuggestion[] | any }>(
+        "/api/results/suggestions"
+      );
+    }
   },
 
   /**
@@ -233,9 +290,15 @@ export const resultsApi = {
     ApiResponse<{ recommendation: AIRecommendationData | any }>
   > {
     logger.info("RESULTS_API", "Fetching AI recommendation");
-    return apiClient.get<{ recommendation: AIRecommendationData | any }>(
-      API_CONFIG.ENDPOINTS.RESULTS.AI_RECOMMENDATION
-    );
+    try {
+      return await apiClient.get<{ recommendation: AIRecommendationData | any }>(
+        API_CONFIG.ENDPOINTS.RESULTS.AI_RECOMMENDATION
+      );
+    } catch {
+      return apiClient.get<{ recommendation: AIRecommendationData | any }>(
+        "/api/results/ai-recommendation"
+      );
+    }
   },
 
   /**

@@ -15,7 +15,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { captureRef } from "react-native-view-shot";
-import * as MediaLibrary from "expo-media-library";
+
+let MediaLibrary: typeof import("expo-media-library") | null = null;
+try {
+  MediaLibrary = require("expo-media-library");
+} catch {
+  // Graceful fallback for environments missing ExpoMediaLibraryNext (e.g. Expo Go)
+}
+
 import {
   useChallenges,
   useMyChallenges,
@@ -1427,6 +1434,15 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
       setIsSavingCertificateToGallery(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+      if (!MediaLibrary) {
+        Alert.alert(
+          "Notice",
+          "Saving certificates to the photo gallery requires a development build."
+        );
+        setIsSavingCertificateToGallery(false);
+        return;
+      }
+
       const permissionResponse = await MediaLibrary.requestPermissionsAsync();
       if (!permissionResponse.granted) {
         Alert.alert(
@@ -1487,13 +1503,6 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
           </View>
         ) : hasLiveCertificates ? (
           liveCertificates.map((cert) => {
-            const serial = (cert.serial || cert.id || cert._id || "").trim();
-            const verifyUrl =
-              cert.verificationUrl &&
-              cert.verificationUrl.startsWith("http") &&
-              !cert.verificationUrl.includes("/api/certificates/verify")
-                ? cert.verificationUrl
-                : API_CONFIG.ENDPOINTS.CERTIFICATES.VERIFY_WEB(serial);
             return (
               <View
                 key={cert._id || cert.id || cert.serial}
@@ -1546,34 +1555,8 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
                 {/* Subtle Divider */}
                 <View className="h-[1px] bg-slate-100 dark:bg-slate-800 my-1" />
 
-                {/* Action Links: Verify & Download */}
-                <View className="flex-row items-center justify-between pt-2">
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={async () => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      if (!serial) {
-                        Alert.alert(
-                          "Verification Unavailable",
-                          "Certificate serial number is not available for this credential."
-                        );
-                        return;
-                      }
-                      logger.info(
-                        "CERTIFICATES_UI",
-                        `Opening certificate verification for serial: ${serial}`,
-                        { verifyUrl }
-                      );
-                      await openExternalUrl(verifyUrl, { preferInApp: true });
-                    }}
-                    className="flex-row items-center py-1 pr-3"
-                  >
-                    <Ionicons name="open-outline" size={14} color="#8B0000" />
-                    <Text className="text-xs font-bold text-[#8B0000] dark:text-red-400 ml-1.5">
-                      Verify
-                    </Text>
-                  </TouchableOpacity>
-
+                {/* Action Link: Download */}
+                <View className="flex-row items-center justify-end pt-2">
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => {

@@ -8,7 +8,8 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { PlacementJob } from "./types";
 import { placementCenterApi } from "./api";
-import { notificationEngine } from "@/services/notifications";
+import { notificationEngine } from "@/services/notifications/notificationEngine";
+import { storageService } from "@/services/storage";
 import { logger } from "@/utils/logger";
 
 const STORAGE_KEY_KNOWN_JOBS = "scis_known_job_ids";
@@ -162,6 +163,9 @@ class JobWatcher {
    * Proactively polls the latest jobs from backend and inspects for newly published opportunities
    */
   async syncAndCheckJobs(options?: { silent?: boolean }): Promise<number> {
+    if (!storageService.isAuthenticated()) {
+      return 0;
+    }
     try {
       const res = await placementCenterApi.getJobs({ limit: 20 });
       const rawJobs = res.data?.jobs || [];

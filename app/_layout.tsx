@@ -3,7 +3,8 @@ import React, { useEffect, useRef } from "react";
 import { View, LogBox, AppState, AppStateStatus } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
-import { notificationEngine, registerBackgroundNotificationTaskAsync } from "@/services/notifications";
+import { notificationEngine } from "@/services/notifications";
+import { registerBackgroundNotificationTaskAsync } from "@/services/notifications/backgroundNotificationTask";
 import {
   registerForPushNotificationsAsync,
   getActiveExpoPushToken,
@@ -14,6 +15,7 @@ import { usePlacementCenterStore } from "@/features/placement/store";
 import { useNotificationsStore } from "@/features/notifications/store";
 import { notificationsApi } from "@/features/notifications/api";
 import { InAppNotificationBanner } from "@/components/notifications/InAppNotificationBanner";
+import { storageService } from "@/services/storage";
 import { logger } from "@/utils/logger";
 
 // Suppress Expo Go remote push notification warning during local development in Expo Go
@@ -38,19 +40,22 @@ export default function RootLayout() {
       });
 
       // Synchronize latest published jobs & server notifications on startup (alerts if new ones arrived while closed)
-      jobWatcher.syncAndCheckJobs().catch((err) => {
-        logger.debug("LAYOUT", "Initial job sync skipped", err);
-      });
-      notificationWatcher.syncAndCheckNotifications().catch((err) => {
-        logger.debug("LAYOUT", "Initial notification sync skipped", err);
-      });
+      if (storageService.isAuthenticated()) {
+        jobWatcher.syncAndCheckJobs().catch((err) => {
+          logger.debug("LAYOUT", "Initial job sync skipped", err);
+        });
+        notificationWatcher.syncAndCheckNotifications().catch((err) => {
+          logger.debug("LAYOUT", "Initial notification sync skipped", err);
+        });
+      }
     });
 
     // 2. AppState change listener: sync jobs, notifications & push tokens when app comes to foreground
     const appStateSubscription = AppState.addEventListener("change", (nextAppState) => {
       if (
         appState.current.match(/inactive|background/) &&
-        nextAppState === "active"
+        nextAppState === "active" &&
+        storageService.isAuthenticated()
       ) {
         logger.info("LAYOUT", "App returned to foreground: synchronizing jobs and notifications");
         jobWatcher.syncAndCheckJobs({ silent: false }).catch((e) =>
@@ -70,7 +75,7 @@ export default function RootLayout() {
 
     // 3. Periodic real-time job & notification polling interval (every 30 seconds while active)
     const pollInterval = setInterval(() => {
-      if (appState.current === "active") {
+      if (appState.current === "active" && storageService.isAuthenticated()) {
         jobWatcher.syncAndCheckJobs({ silent: false }).catch((e) =>
           logger.debug("LAYOUT", "Periodic job sync skipped", e)
         );

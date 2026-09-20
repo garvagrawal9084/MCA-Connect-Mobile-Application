@@ -248,11 +248,9 @@ export default function LoginScreen() {
           </Animated.View>
 
           {/* Form Card with Jiggle / Error Shake */}
-          <Animated.View
-            entering={FadeInDown.delay(80).duration(300).springify().damping(20)}
-            style={animatedCardShakeStyle}
-          >
-            <Card className="mb-4 border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/60 dark:shadow-none p-6">
+          <Animated.View entering={FadeInDown.delay(80).duration(300).springify().damping(20)}>
+            <Animated.View style={animatedCardShakeStyle}>
+              <Card className="mb-4 border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/60 dark:shadow-none p-6">
               {/* Header & Logo Branding Inside Card */}
               <View className="items-center mb-6">
                 <TouchableOpacity
@@ -438,6 +436,7 @@ export default function LoginScreen() {
               </View>
             </Card>
           </Animated.View>
+        </Animated.View>
 
           {/* University of Hyderabad Footer Badge */}
           <Animated.View

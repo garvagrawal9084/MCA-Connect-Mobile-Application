@@ -68,12 +68,14 @@ class ApiClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
 
+    const isFormData = typeof FormData !== "undefined" && customConfig.body instanceof FormData;
+
     const requestHeaders: Record<string, string> = {
-      "Content-Type": "application/json",
       Accept: "application/json",
       "X-SCIS-Client": "mobile-app",
       "X-SCIS-Platform": Platform.OS,
       "X-SCIS-Device-Model": encodeURIComponent(Device.modelName || "Unknown mobile device"),
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(headers as Record<string, string>),
     };
 
@@ -298,6 +300,21 @@ class ApiClient {
    */
   async delete<T = unknown>(endpoint: string, options?: RequestOptions): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { ...options, method: "DELETE" });
+  }
+
+  /**
+   * Helper: Multipart upload request (FormData)
+   */
+  async upload<T = unknown>(
+    endpoint: string,
+    formData: FormData,
+    options?: RequestOptions
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: options?.method || "POST",
+      body: formData,
+    });
   }
 }
 

@@ -8,11 +8,20 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
-import { NotificationItem, normalizeNotification } from "@/features/notifications/types";
+import {
+  NotificationItem,
+  normalizeNotification,
+  InAppNotificationBannerData,
+} from "@/features/notifications/types";
 import { notificationsApi } from "@/features/notifications/api";
-import { useNotificationsStore } from "@/features/notifications/store";
 import { NOTIFICATION_CHANNELS } from "./channels";
+import { storageService } from "@/services/storage";
 import { logger } from "@/utils/logger";
+
+export interface NotificationWatcherDelegate {
+  showInAppBanner?: (banner: InAppNotificationBannerData) => void;
+  onNewNotifications?: (newItems: NotificationItem[]) => void;
+}
 
 const STORAGE_KEY_KNOWN_NOTIFS = "scis_known_notification_ids";
 
@@ -60,6 +69,15 @@ async function saveStoredNotificationIds(ids: string[]): Promise<void> {
 class NotificationWatcher {
   private knownNotifIds: Set<string> = new Set();
   private isInitialized: boolean = false;
+  private delegate: NotificationWatcherDelegate | null = null;
+
+  /**
+   * Set a delegate to receive banner displays and new notifications
+   * without creating a circular module dependency.
+   */
+  setDelegate(delegate: NotificationWatcherDelegate | null): void {
+    this.delegate = delegate;
+  }
 
   /**
    * Inspect a list of fetched notifications.
@@ -135,7 +153,6 @@ class NotificationWatcher {
       `Detected ${newItems.length} newly arrived server notification(s)! Triggering alerts...`
     );
 
-    const notifStore = useNotificationsStore.getState();
 
     for (const item of newItems) {
       const id = item._id || item.id;
@@ -274,8 +291,8 @@ class NotificationWatcher {
           logger.debug("NOTIF_WATCHER", "Native notification schedule error", err);
         }
 
-        // 2. Display the floating in-app animated banner
-        notifStore.showInAppBanner({
+        // 2. Display the floating in-app animated banner via delegate
+        this.delegate?.showInAppBanner?.({
           id: `srv-${id}`,
           type: item.type,
           title: formattedTitle,
@@ -293,29 +310,20 @@ class NotificationWatcher {
       }
     }
 
-    // Directly merge new items into Zustand state so UI updates immediately
-    useNotificationsStore.setState((state) => {
-      const existingIds = new Set(state.notifications.map((n) => n._id || n.id));
-      const itemsToAdd = newItems.filter((n) => !existingIds.has(n._id || n.id));
-      if (itemsToAdd.length === 0) return state;
-      return {
-        notifications: [...itemsToAdd, ...state.notifications],
-        unreadCount: state.unreadCount + itemsToAdd.length,
-      };
-    });
+    // Directly merge new items into state via delegate so UI updates immediately
+    this.delegate?.onNewNotifications?.(newItems);
 
     // Persist updated known IDs
     await saveStoredNotificationIds(Array.from(this.knownNotifIds));
-
-    // Refresh notifications list & unread count in background
-    notifStore.fetchNotifications().catch(() => {});
-    notifStore.fetchUnreadCount().catch(() => {});
   }
 
   /**
    * Polls /api/notifications and inspects for newly published reminders / broadcasts
    */
   async syncAndCheckNotifications(options?: { silent?: boolean }): Promise<number> {
+    if (!storageService.isAuthenticated()) {
+      return 0;
+    }
     try {
       const res = await notificationsApi.getNotifications({ limit: 20 });
       let rawList: unknown[] = [];

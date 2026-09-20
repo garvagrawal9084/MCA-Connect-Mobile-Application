@@ -46,6 +46,10 @@ Notifications.setNotificationHandler({
  */
 export async function setupAndroidNotificationChannels(): Promise<void> {
   if (Platform.OS !== "android") return;
+  if (isExpoGo) {
+    logger.debug("NOTIFICATIONS", "Skipping Android notification channels setup in Expo Go");
+    return;
+  }
 
   try {
     for (const channelKey of Object.keys(NOTIFICATION_CHANNELS)) {
@@ -174,6 +178,11 @@ export async function requestNotificationPermissionsWithPrompt(): Promise<boolea
 export async function registerForPushNotificationsAsync(
   tokenOverride?: string
 ): Promise<string | null> {
+  if (isExpoGo) {
+    logger.debug("NOTIFICATIONS", "Remote push notifications are not supported in Expo Go");
+    return null;
+  }
+
   // If a registration is already executing, reuse the in-flight Promise
   if (inFlightRegistrationPromise) {
     logger.debug("NOTIFICATIONS", "Push registration already in-flight, returning active promise");

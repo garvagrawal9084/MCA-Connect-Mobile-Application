@@ -309,6 +309,10 @@ class StorageService {
     return this.accessToken;
   }
 
+  isAuthenticated(): boolean {
+    return Boolean(this.accessToken || this.currentUser);
+  }
+
   /**
    * Current Authenticated User Management
    */

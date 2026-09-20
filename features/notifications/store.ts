@@ -321,4 +321,20 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 }));
 
+// Wire notificationWatcher delegate so it can trigger in-app banners and update state without circular import
+notificationWatcher.setDelegate({
+  showInAppBanner: (banner) => useNotificationsStore.getState().showInAppBanner(banner),
+  onNewNotifications: (newItems) => {
+    useNotificationsStore.setState((state) => {
+      const existingIds = new Set(state.notifications.map((n) => n._id || n.id));
+      const itemsToAdd = newItems.filter((n) => !existingIds.has(n._id || n.id));
+      if (itemsToAdd.length === 0) return state;
+      return {
+        notifications: [...itemsToAdd, ...state.notifications],
+        unreadCount: state.unreadCount + itemsToAdd.length,
+      };
+    });
+  },
+});
+
 

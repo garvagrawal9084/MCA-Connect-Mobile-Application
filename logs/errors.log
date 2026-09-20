@@ -306,3 +306,21 @@
       - TypeScript (`npx tsc --noEmit`): 0 errors.
       - Linting (`npm run lint`): 0 errors.
       - Tested public web route `https://scisconnect.up.railway.app/certificate/verify/:serial` returns HTTP 200. Status: RESOLVED.
+
+  [2026-09-19 20:23:00.000] [INFO]  [CERTIFICATE_UI_CLEANUP] Removed redundant "Verify" button from certificate cards in components/placement/PlacementDetailModal.tsx.
+    - Origin: components/placement/PlacementDetailModal.tsx inside renderCertificatesContent.
+    - Context: Students can directly tap "Download" to open the high-fidelity Certificate Preview Modal (which includes the recipient details, stats, verified badge, and scan-to-verify QR code) and save high-resolution PNGs directly to their photo gallery. Having a duplicate "Verify" link in the bottom action bar was redundant.
+    - Resolution: Removed the "Verify" touchable trigger and cleaned up unused `verifyUrl` calculation from `renderCertificatesContent`. Styled the remaining "Download" action aligned cleanly to the right (`justify-end`).
+    - Verification: `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors). Status: RESOLVED.
+
+  [2026-09-20 22:15:00.000] [ERROR] [RESULTS_ENDPOINT_INVALID_ID_FIX] HTTP 400 Bad Request: "Invalid _id: improvement" on /api/assessments/results/improvement.
+    - Origin: features/results/api.ts & constants/config.ts called from fetchPerformanceAnalytics() in features/results/store.ts.
+    - Root Cause:
+      1. In constants/config.ts, results analytics endpoints (IMPROVEMENT, SPEED_ANALYSIS, SUGGESTIONS, AI_RECOMMENDATION, LEADERBOARD, REPORT, etc.) were mapped under `/api/assessments/results/*` instead of `/api/results/*`.
+      2. The backend Express router at `/api/assessments/results` defines `GET /:id` which validates `:id` as a MongoDB ObjectId. When `/api/assessments/results/improvement` was requested, Express matched `/:id` with `id = "improvement"`, triggering a 400 rejection: `{"success":false,"message":"Invalid _id: improvement"}`.
+      3. The actual result analytics and reporting endpoints are mounted under `/api/results/*` on the backend server.
+    - Resolution:
+      1. Updated `API_CONFIG.ENDPOINTS.RESULTS` in `constants/config.ts` to map canonical endpoints under `/api/results/*` while retaining `/api/assessments/results/my` for student assessments.
+      2. Added multi-tier fallback routing in `features/results/api.ts` for `getImprovement()`, `getSpeedAnalysis()`, `getSuggestions()`, `getAIRecommendation()`, `getMyResults()`, `getResult()`, `computeResult()`, `publishResult()`, and `getResultAnalysis()`.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
