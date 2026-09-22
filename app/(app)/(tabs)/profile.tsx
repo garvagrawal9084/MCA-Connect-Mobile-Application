@@ -22,6 +22,10 @@ import { EditBioModal } from "@/components/profile/EditBioModal";
 import { EditContactModal } from "@/components/profile/EditContactModal";
 import { EditSkillsLinksModal } from "@/components/profile/EditSkillsLinksModal";
 import { EditEducationModal } from "@/components/profile/EditEducationModal";
+import {
+  EditSectionPickerModal,
+  ProfileSection,
+} from "@/components/profile/EditSectionPickerModal";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useNotificationsStore } from "@/features/notifications/store";
 import { useProfile } from "@/features/profile/hooks";
@@ -41,10 +45,28 @@ export default function ProfileScreen() {
   } = useProfile();
   const [bioExpanded, setBioExpanded] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSectionPickerOpen, setIsSectionPickerOpen] = useState(false);
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [isEducationModalOpen, setIsEducationModalOpen] = useState(false);
+
+  const handleSelectSection = (section: ProfileSection) => {
+    switch (section) {
+      case "bio":
+        setIsBioModalOpen(true);
+        break;
+      case "contact":
+        setIsContactModalOpen(true);
+        break;
+      case "skills":
+        setIsSkillsModalOpen(true);
+        break;
+      case "education":
+        setIsEducationModalOpen(true);
+        break;
+    }
+  };
   const masterNotificationsEnabled = useNotificationsStore(
     (state) => state.masterNotificationsEnabled
   );
@@ -195,14 +217,28 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          {/* Quick Refresh Icon */}
-          <TouchableOpacity
-            onPress={refreshProfile}
-            className="w-9 h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 items-center justify-center shadow-xs"
-            activeOpacity={0.7}
-          >
-            <Ionicons name="refresh-outline" size={17} color="#64748B" />
-          </TouchableOpacity>
+          {/* Header Action Icons */}
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsSectionPickerOpen(true);
+              }}
+              className="w-9 h-9 rounded-full bg-red-50 dark:bg-red-950/60 border border-red-200/80 dark:border-red-800/80 items-center justify-center shadow-xs"
+              activeOpacity={0.7}
+            >
+              <Ionicons name="create-outline" size={17} color="#8B0000" />
+            </TouchableOpacity>
+
+            {/* Quick Refresh Icon */}
+            <TouchableOpacity
+              onPress={refreshProfile}
+              className="w-9 h-9 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 items-center justify-center shadow-xs"
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh-outline" size={17} color="#64748B" />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Profile Card Header */}
@@ -281,6 +317,21 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
+
+            {/* Primary Edit Profile Action */}
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setIsSectionPickerOpen(true);
+              }}
+              className="mt-4 flex-row items-center justify-center bg-red-800 dark:bg-red-700 px-5 py-2.5 rounded-xl shadow-xs"
+              activeOpacity={0.8}
+            >
+              <Ionicons name="create-outline" size={15} color="#FFFFFF" />
+              <Text className="text-xs font-bold text-white ml-2">
+                Edit Profile
+              </Text>
+            </TouchableOpacity>
           </Card>
         </Animated.View>
 
@@ -417,30 +468,30 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Skills & Technologies */}
-        {skills.length > 0 ? (
-          <Animated.View
-            entering={FadeInDown.delay(180).duration(260).springify().damping(20)}
-            className="mb-4"
-          >
-            <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <Ionicons name="code-slash-outline" size={16} color="#8B0000" />
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                    Technical Skills & Stack
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setIsSkillsModalOpen(true);
-                  }}
-                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="pencil" size={12} color="#8B0000" />
-                </TouchableOpacity>
+        <Animated.View
+          entering={FadeInDown.delay(180).duration(260).springify().damping(20)}
+          className="mb-4"
+        >
+          <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <Ionicons name="code-slash-outline" size={16} color="#8B0000" />
+                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                  Technical Skills & Stack
+                </Text>
               </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsSkillsModalOpen(true);
+                }}
+                className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil" size={12} color="#8B0000" />
+              </TouchableOpacity>
+            </View>
+            {skills.length > 0 ? (
               <View className="flex-row flex-wrap gap-2">
                 {skills.map((skill, index) => (
                   <View
@@ -453,9 +504,26 @@ export default function ProfileScreen() {
                   </View>
                 ))}
               </View>
-            </Card>
-          </Animated.View>
-        ) : null}
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsSkillsModalOpen(true);
+                }}
+                activeOpacity={0.7}
+                className="py-2.5 flex-row items-center justify-between bg-slate-50 dark:bg-slate-900/60 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl px-3"
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <Ionicons name="add-circle-outline" size={17} color="#8B0000" />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400 italic ml-2">
+                    Tap to add your programming languages & skills...
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </Card>
+        </Animated.View>
 
         {/* Projects Showcase */}
         {projects.length > 0 ? (
@@ -517,31 +585,31 @@ export default function ProfileScreen() {
         ) : null}
 
         {/* Coding & Social Profiles */}
-        {hasCodingProfiles ? (
-          <Animated.View
-            entering={FadeInDown.delay(260).duration(260).springify().damping(20)}
-            className="mb-4"
-          >
-            <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <Ionicons name="globe-outline" size={16} color="#8B0000" />
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                    Coding & Professional Profiles
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setIsSkillsModalOpen(true);
-                  }}
-                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="pencil" size={12} color="#8B0000" />
-                </TouchableOpacity>
+        <Animated.View
+          entering={FadeInDown.delay(260).duration(260).springify().damping(20)}
+          className="mb-4"
+        >
+          <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <Ionicons name="globe-outline" size={16} color="#8B0000" />
+                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                  Coding & Professional Profiles
+                </Text>
               </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsSkillsModalOpen(true);
+                }}
+                className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil" size={12} color="#8B0000" />
+              </TouchableOpacity>
+            </View>
 
+            {hasCodingProfiles ? (
               <View className="gap-2.5">
                 {profile?.github ? (
                   <TouchableOpacity
@@ -662,36 +730,53 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 ) : null}
               </View>
-            </Card>
-          </Animated.View>
-        ) : null}
-
-        {/* Academic Education Timeline */}
-        {hasEducation && education ? (
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(260).springify().damping(20)}
-            className="mb-4"
-          >
-            <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <Ionicons name="school-outline" size={16} color="#8B0000" />
-                  <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
-                    Academic Background
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsSkillsModalOpen(true);
+                }}
+                activeOpacity={0.7}
+                className="py-2.5 flex-row items-center justify-between bg-slate-50 dark:bg-slate-900/60 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl px-3"
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <Ionicons name="link-outline" size={17} color="#8B0000" />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400 italic ml-2">
+                    Tap to connect GitHub, LinkedIn, LeetCode, GFG...
                   </Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setIsEducationModalOpen(true);
-                  }}
-                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="pencil" size={12} color="#8B0000" />
-                </TouchableOpacity>
-              </View>
+                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </Card>
+        </Animated.View>
 
+        {/* Academic Education Timeline */}
+        <Animated.View
+          entering={FadeInDown.delay(300).duration(260).springify().damping(20)}
+          className="mb-4"
+        >
+          <Card className="border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs">
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <Ionicons name="school-outline" size={16} color="#8B0000" />
+                <Text className="text-sm font-bold text-slate-900 dark:text-white ml-1.5">
+                  Academic Background
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsEducationModalOpen(true);
+                }}
+                className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 items-center justify-center border border-red-200/80 dark:border-red-800"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil" size={12} color="#8B0000" />
+              </TouchableOpacity>
+            </View>
+
+            {hasEducation && education ? (
               <View className="gap-3">
                 {/* Post Graduation */}
                 {education.postGraduation?.degree && (
@@ -806,9 +891,26 @@ export default function ProfileScreen() {
                   )}
                 </View>
               </View>
-            </Card>
-          </Animated.View>
-        ) : null}
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsEducationModalOpen(true);
+                }}
+                activeOpacity={0.7}
+                className="py-2.5 flex-row items-center justify-between bg-slate-50 dark:bg-slate-900/60 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl px-3"
+              >
+                <View className="flex-row items-center flex-1 mr-2">
+                  <Ionicons name="school-outline" size={17} color="#8B0000" />
+                  <Text className="text-xs text-slate-500 dark:text-slate-400 italic ml-2">
+                    Tap to add your college, degree & school history...
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </Card>
+        </Animated.View>
 
         {/* Resumes & Documents */}
         {hasResumes ? (
@@ -1031,6 +1133,12 @@ export default function ProfileScreen() {
         />
 
         {/* Section Edit Modals */}
+        <EditSectionPickerModal
+          visible={isSectionPickerOpen}
+          onClose={() => setIsSectionPickerOpen(false)}
+          onSelectSection={handleSelectSection}
+        />
+
         <EditBioModal
           visible={isBioModalOpen}
           onClose={() => setIsBioModalOpen(false)}
