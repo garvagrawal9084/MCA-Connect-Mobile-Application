@@ -1,7 +1,7 @@
 {
   "name": "scis-connect",
   "main": "expo-router/entry",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -12,9 +12,6 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
-    "@react-navigation/bottom-tabs": "^7.4.0",
-    "@react-navigation/elements": "^2.6.3",
-    "@react-navigation/native": "^7.1.8",
     "babel-preset-expo": "~57.0.0",
     "expo": "~57.0.24",
     "expo-background-fetch": "~57.0.19",
@@ -23,7 +20,6 @@
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-image": "~57.0.5",
-    "expo-image-picker": "~57.0.19",
     "expo-linking": "~57.0.10",
     "expo-media-library": "~57.0.5",
     "expo-notifications": "~57.0.20",
@@ -31,8 +27,6 @@
     "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
-    "expo-symbols": "~57.0.3",
-    "expo-system-ui": "~57.0.4",
     "expo-task-manager": "~57.0.19",
     "expo-updates": "~57.0.23",
     "expo-web-browser": "~57.0.3",
