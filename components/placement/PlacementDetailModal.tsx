@@ -1443,7 +1443,7 @@ export const PlacementDetailModal: React.FC<PlacementDetailModalProps> = ({
         return;
       }
 
-      const permissionResponse = await MediaLibrary.requestPermissionsAsync();
+      const permissionResponse = await MediaLibrary.requestPermissionsAsync(true);
       if (!permissionResponse.granted) {
         Alert.alert(
           "Permission Required",
