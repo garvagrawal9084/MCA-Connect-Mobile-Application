@@ -332,3 +332,16 @@
       - TypeScript (`npx tsc --noEmit`): 0 errors.
       - AAB Integrity: Validated in ~/Downloads/scis-connect-v2.1.0.aab (0 errors). Status: RESOLVED.
 
+  [2026-09-23 00:24:00.000] [INFO]  [PROFILE_EDIT_RELEASE_OTA_UPDATE] Deployed Profile Edit Option & Empty States OTA update to production channel:
+    - Context: Student Profile edit modals were introduced in v2.1.0, but sections were completely hidden when empty (skills, coding profiles, education), preventing users with blank profiles from adding details. In addition, a centralized "Edit Profile" action was missing on the profile header and overview card.
+    - Implementation:
+      1. Created EditSectionPickerModal.tsx to allow 1-tap navigation to any section modal (Bio, Contact, Skills & Handles, Academic Background).
+      2. Added prominent "Edit Profile" CTA button on the profile card and quick-action icon in the top header of app/(app)/(tabs)/profile.tsx.
+      3. Converted Skills, Coding Profiles, and Academic Background cards to always persist with dashed interactive empty states.
+      4. Published Over-The-Air (OTA) update via EAS Update group 236abac5-f81f-40c7-8ea7-7557e7946845 to production channel (runtimeVersion: 1.0.0).
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors.
+      - Expo Doctor (`npx expo-doctor`): 21/21 checks passed.
+      - EAS Production Channel verified active and serving update group 236abac5-f81f-40c7-8ea7-7557e7946845. Status: RESOLVED.
+
+
