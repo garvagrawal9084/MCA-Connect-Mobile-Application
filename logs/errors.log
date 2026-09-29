@@ -344,4 +344,22 @@
       - Expo Doctor (`npx expo-doctor`): 21/21 checks passed.
       - EAS Production Channel verified active and serving update group 236abac5-f81f-40c7-8ea7-7557e7946845. Status: RESOLVED.
 
+  [2026-09-29 11:35:00.000] [ERROR] [UI_MODAL_KEYBOARD_AVOIDANCE_FIX] Mentorship Request Modal form covered by soft keyboard on Alumni Profile and Mentors screens.
+    - Origin: app/(app)/alumni/profile.tsx & app/(app)/alumni/mentors.tsx
+    - Context: In Placement -> SCIS Family -> Profile (and Mentors directory), tapping "Mentorship" opened the mentorship request sheet. Focusing any text input triggered the software keyboard which completely covered the inputs and "Send Request" submit button.
+    - Root Cause:
+      1. Lack of <KeyboardAvoidingView> inside the <Modal>.
+      2. Missing statusBarTranslucent, animationType="slide", and backdrop touch dismissal.
+      3. On Android, transparent Dialog windows do not automatically adjust layout for virtual keyboards without explicit height behavior.
+      4. Missing keyboardShouldPersistTaps="handled" on the inner form ScrollView.
+    - Resolution:
+      1. Wrapped modal containers in <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">.
+      2. Added statusBarTranslucent and animationType="slide" to <Modal>.
+      3. Added <TouchableWithoutFeedback onPress={handleClose}> backdrop dismissal handler.
+      4. Added keyboardShouldPersistTaps="handled" and contentContainerStyle={{ paddingBottom: 24 }} to <ScrollView>.
+      5. Fixed both profile.tsx and mentors.tsx for uniform mentorship UX.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors.
+      - Version Bump: v2.1.3 in package.json & app.json. Status: RESOLVED.
+
 
