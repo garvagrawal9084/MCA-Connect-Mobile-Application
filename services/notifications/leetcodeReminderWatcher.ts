@@ -20,8 +20,8 @@ import { useAuthStore } from "@/features/auth/authStore";
 import { useChallengeStore } from "@/features/challenges/store";
 import { logger } from "@/utils/logger";
 
-const THREE_HOURS_MS = 3 * 60 * 60 * 1000; // 3 hours (10,800,000 ms)
-const CHECK_BUFFER_MS = 5 * 60 * 1000; // 5-minute buffer to accommodate OS timing jitters
+const ONE_HOUR_MS = 1 * 60 * 60 * 1000; // 1 hour (3,600,000 ms)
+const CHECK_BUFFER_MS = 3 * 60 * 1000; // 3-minute buffer to accommodate OS timing jitters
 
 export interface ReminderCheckOptions {
   force?: boolean;
@@ -55,14 +55,14 @@ class LeetCodeReminderWatcher {
   async init(): Promise<void> {
     if (this.isInitialized) return;
     this.isInitialized = true;
-    logger.info("LEETCODE_REMINDER", "Initializing LeetCode 3-Hour Reminder Watcher");
+    logger.info("LEETCODE_REMINDER", "Initializing LeetCode 1-Hour Reminder Watcher");
 
     // Ensure persistent storage is restored into memory
     if (!storageService.isInitialized()) {
       await storageService.init();
     }
 
-    // Start in-app periodic timer (checks every 15 minutes whether the 3-hour check is due)
+    // Start in-app periodic timer (checks every 10 minutes whether the 1-hour check is due)
     this.startInAppPolling();
 
     // Perform an initial check if due
@@ -72,19 +72,19 @@ class LeetCodeReminderWatcher {
   }
 
   /**
-   * Starts light in-app timer to poll if 3-hour threshold has elapsed while app is open
+   * Starts light in-app timer to poll if 1-hour threshold has elapsed while app is open
    */
   private startInAppPolling(): void {
     if (this.inAppTimer) {
       clearInterval(this.inAppTimer);
     }
 
-    // Inspect every 15 minutes while the app is active in foreground
+    // Inspect every 10 minutes while the app is active in foreground
     this.inAppTimer = setInterval(() => {
       this.checkDailySolveReminder().catch((err) => {
         logger.debug("LEETCODE_REMINDER", "Periodic in-app reminder poll skipped", err);
       });
-    }, 15 * 60 * 1000);
+    }, 10 * 60 * 1000);
   }
 
   /**
@@ -130,11 +130,11 @@ class LeetCodeReminderWatcher {
         return false;
       }
 
-      // 2. Check 3-Hour Frequency Interval
+      // 2. Check 1-Hour Frequency Interval
       const lastCheck = await storageService.getLeetCodeLastCheck();
       const elapsed = Date.now() - lastCheck;
-      if (!options?.force && lastCheck > 0 && elapsed < THREE_HOURS_MS - CHECK_BUFFER_MS) {
-        const remainingMin = Math.ceil((THREE_HOURS_MS - elapsed) / 60000);
+      if (!options?.force && lastCheck > 0 && elapsed < ONE_HOUR_MS - CHECK_BUFFER_MS) {
+        const remainingMin = Math.ceil((ONE_HOUR_MS - elapsed) / 60000);
         logger.debug(
           "LEETCODE_REMINDER",
           `Interval threshold not met: ${Math.round(elapsed / 60000)}m elapsed. Next check in ~${remainingMin}m.`
@@ -365,7 +365,7 @@ class LeetCodeReminderWatcher {
       if (hasSolvedAnyToday) {
         logger.info(
           "LEETCODE_REMINDER",
-          `Streak verified active (${solvedChallengeName}). Resetting 3-hour check timer.`
+          `Streak verified active (${solvedChallengeName}). Resetting 1-hour check timer.`
         );
         await storageService.setLeetCodeLastCheck(Date.now());
         return false;
@@ -374,7 +374,7 @@ class LeetCodeReminderWatcher {
       // If user is enrolled in active challenges and has dailyTotal === 0 today:
       logger.info(
         "LEETCODE_REMINDER",
-        "Student has not solved any LeetCode questions today across active challenges. Triggering 3-hour streak reminder alert!"
+        "Student has not solved any LeetCode questions today across active challenges. Triggering 1-hour streak reminder alert!"
       );
 
       await notificationEngine.trigger(

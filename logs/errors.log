@@ -450,4 +450,18 @@
     - Verification:
       - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
 
+  [2026-10-02 13:50:00.000] [INFO]  [LEETCODE_1HOUR_STREAK_REMINDER_UPDATE] Updated LeetCode streak reminder frequency to 1 hour:
+    - Origin: User requested reminder interval to be adjusted from 3 hours to 1 hour.
+    - Implementation:
+      1. Updated `ONE_HOUR_MS` = 1 * 60 * 60 * 1000 ms (3,600,000 ms) with a 3-minute grace buffer in `services/notifications/leetcodeReminderWatcher.ts`.
+      2. Updated in-app periodic foreground polling from 15 minutes to 10 minutes.
+      3. Updated `SCIS_LEETCODE_REMINDER_TASK` `minimumInterval` to 1 * 60 * 60 (3,600s) with auto unregister/re-register in `services/notifications/backgroundNotificationTask.ts`.
+      4. Updated diagnostic action in `NotificationSettingsModal.tsx` to "Run Live 1-Hour Streak Check Now".
+    - Documentation & Standards:
+      - Created `docs/leetcode-1hour-streak-reminder-update.md`.
+      - Created educational guide `learning/50-hourly-background-workmanager-and-streak-frequency.md`.
+      - Bumped version to `v2.2.4` in `package.json` and `app.json`.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
+
 

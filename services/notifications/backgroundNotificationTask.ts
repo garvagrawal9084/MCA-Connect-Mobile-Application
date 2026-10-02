@@ -83,19 +83,21 @@ export async function registerBackgroundNotificationTaskAsync(): Promise<void> {
       logger.info("BG_TASK", "Registered general background notification task with OS");
     }
 
-    // 2. Register LeetCode Reminder Task (3-hour interval = 10,800 seconds)
+    // 2. Register LeetCode Reminder Task (1-hour interval = 3,600 seconds)
     const isLeetcodeRegistered = await TaskManager.isTaskRegisteredAsync(
       SCIS_LEETCODE_REMINDER_TASK
     );
 
-    if (!isLeetcodeRegistered) {
-      await BackgroundFetch.registerTaskAsync(SCIS_LEETCODE_REMINDER_TASK, {
-        minimumInterval: 3 * 60 * 60, // 3 hours
-        stopOnTerminate: false, // Continue executing even when user closes the app
-        startOnBoot: true, // Automatically start task on phone boot
-      });
-      logger.info("BG_TASK", "Registered LeetCode 3-Hour streak reminder task with OS WorkManager");
+    if (isLeetcodeRegistered) {
+      await BackgroundFetch.unregisterTaskAsync(SCIS_LEETCODE_REMINDER_TASK).catch(() => {});
     }
+
+    await BackgroundFetch.registerTaskAsync(SCIS_LEETCODE_REMINDER_TASK, {
+      minimumInterval: 1 * 60 * 60, // 1 hour
+      stopOnTerminate: false, // Continue executing even when user closes the app
+      startOnBoot: true, // Automatically start task on phone boot
+    });
+    logger.info("BG_TASK", "Registered LeetCode 1-Hour streak reminder task with OS WorkManager");
   } catch (error) {
     logger.debug("BG_TASK", "Could not register background notification tasks", error);
   }

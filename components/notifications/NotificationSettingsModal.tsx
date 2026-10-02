@@ -260,7 +260,7 @@ export function NotificationSettingsModal({
                 Verify that your device's native notification channels, sound, vibration, and background tap routing are operating correctly.
               </Text>
 
-              {/* Button 0: Live 3-Hour Streak Check Diagnostics */}
+              {/* Button 0: Live 1-Hour Streak Check Diagnostics */}
               <TouchableOpacity
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -276,7 +276,7 @@ export function NotificationSettingsModal({
                         `• Solved Today: ${d.hasSolvedToday ? "Yes (Streak Active)" : "0 (Reminder Dispatched)"}\n` +
                         `• Time Since Last Check: ${d.elapsedMinutes} mins\n` +
                         `• Quiet Hours (11PM-8AM): ${d.isQuietHours ? "Active (Suppressed)" : "Inactive"}\n\n` +
-                        `Next automatic 3-hour check is scheduled.`,
+                        `Next automatic 1-hour check is scheduled.`,
                       [{ text: "OK" }]
                     );
                   } catch (e) {
@@ -288,7 +288,7 @@ export function NotificationSettingsModal({
               >
                 <Ionicons name="pulse" size={15} color="#FFFFFF" />
                 <Text className="text-xs font-black text-white ml-2">
-                  Run Live 3-Hour Streak Check Now
+                  Run Live 1-Hour Streak Check Now
                 </Text>
               </TouchableOpacity>
 
