@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -117,9 +117,18 @@ const GENERAL_OPTIONS = [
 
 export default function PlacementScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ feature?: string; openModal?: string }>();
   const user = useAuthStore((state) => state.user);
   const [activeModalFeature, setActiveModalFeature] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Auto-open feature modal if navigated via notification or deep link
+  useEffect(() => {
+    const target = params.feature || params.openModal;
+    if (target) {
+      setActiveModalFeature(target);
+    }
+  }, [params.feature, params.openModal]);
 
   // Dynamic Real-time Placement Readiness Metrics
   const {

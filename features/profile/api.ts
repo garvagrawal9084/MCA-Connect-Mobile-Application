@@ -32,9 +32,13 @@ function syncUserFromResponse(data: unknown): UserProfile | null {
 
   if (profileUser && (profileUser.email || profileUser.name || profileUser.id || profileUser._id)) {
     storageService.setUser(profileUser);
+    const userId = profileUser._id || profileUser.id;
+    if (userId) {
+      storageService.setLeetCodeUserId(userId).catch(() => {});
+    }
     useAuthStore.getState().setUser(profileUser);
     logger.info("PROFILE_API", "Profile synchronized to local storage and auth store", {
-      userId: profileUser.id || profileUser._id,
+      userId,
       email: profileUser.email,
     });
     return profileUser;
@@ -248,6 +252,23 @@ export const profileApi = {
     logger.info("PROFILE_API", "Triggering LeetCode stats synchronization");
     const response = await apiClient.post<LeetCodeSyncResponse>(
       API_CONFIG.ENDPOINTS.PROFILE.SYNC_LEETCODE
+    );
+    if (response.data) {
+      syncUserFromResponse(response.data);
+    }
+    return response;
+  },
+
+  /**
+   * 16. Sets or changes the LeetCode username
+   * Endpoint: PATCH /api/profile
+   * Body: { leetcode: "their_leetcode_username" }
+   */
+  async updateLeetCodeUsername(leetcode: string): Promise<ApiResponse<UserProfileResponse>> {
+    logger.info("PROFILE_API", `Setting LeetCode username: ${leetcode}`);
+    const response = await apiClient.patch<UserProfileResponse>(
+      API_CONFIG.ENDPOINTS.PROFILE.BASE,
+      { leetcode: leetcode.trim() }
     );
     if (response.data) {
       syncUserFromResponse(response.data);

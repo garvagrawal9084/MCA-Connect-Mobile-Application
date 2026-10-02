@@ -55,6 +55,7 @@ export interface UpdateProfileRequest {
   resumeLink?: string;
   projects?: ProjectItem[];
   skills?: string[];
+  leetcode?: string;
   [key: string]: unknown;
 }
 
@@ -103,6 +104,7 @@ export interface UpdateProfessionalRequest {
   codechef?: string;
   projects?: ProjectItem[];
   leetcodeUsername?: string;
+  leetcode?: string;
   [key: string]: unknown;
 }
 

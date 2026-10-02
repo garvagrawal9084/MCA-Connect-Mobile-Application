@@ -5,6 +5,7 @@
 
 import { useEffect, useCallback } from "react";
 import { useChallengeStore } from "./store";
+import { profileApi } from "@/features/profile/api";
 
 export const useChallenges = (autoFetch: boolean = true) => {
   const allChallenges = useChallengeStore((state) => state.allChallenges);
@@ -18,7 +19,8 @@ export const useChallenges = (autoFetch: boolean = true) => {
     }
   }, [autoFetch, allChallenges.length, isLoading, fetchAllChallenges]);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
+    profileApi.syncLeetCode().catch(() => {});
     return fetchAllChallenges(true);
   }, [fetchAllChallenges]);
 
@@ -45,7 +47,8 @@ export const useMyChallenges = (autoFetch: boolean = true) => {
     }
   }, [autoFetch, myChallenges.length, isLoading, fetchMyChallenges]);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
+    profileApi.syncLeetCode().catch(() => {});
     return fetchMyChallenges(true);
   }, [fetchMyChallenges]);
 

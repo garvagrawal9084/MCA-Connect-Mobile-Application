@@ -82,6 +82,8 @@ export interface ChallengeDetailResponse {
 }
 
 export interface LeaderboardEntry {
+  _id?: string;
+  userId?: string;
   rank: number;
   name: string;
   roll_no?: string;

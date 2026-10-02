@@ -41,6 +41,8 @@ const STORAGE_KEYS = {
   USER: "scis_auth_user",
   NOTIFICATION_PREFERENCES: "scis_notification_preferences",
   SAVED_JOB_IDS: "scis_saved_job_ids",
+  LEETCODE_USER_ID: "scis_leetcode_user_id",
+  LEETCODE_LAST_CHECK: "scis_leetcode_last_reminder_check",
 } as const;
 
 // Safe platform wrapper for SecureStore with web/local fallback
@@ -415,6 +417,8 @@ class StorageService {
     safeSecureDelete(STORAGE_KEYS.ACCESS_TOKEN);
     safeSecureDelete(STORAGE_KEYS.USER);
     safeSecureDelete(STORAGE_KEYS.REMEMBER_ME);
+    safeSecureDelete(STORAGE_KEYS.LEETCODE_USER_ID);
+    safeSecureDelete(STORAGE_KEYS.LEETCODE_LAST_CHECK);
   }
 
   /**
@@ -471,6 +475,46 @@ class StorageService {
       logger.debug("STORAGE", `Persisted ${ids.length} saved job IDs to storage`);
     } catch (e) {
       logger.debug("STORAGE", "Failed to save saved job IDs", e);
+    }
+  }
+
+  /**
+   * LeetCode User ID & Reminder Check Persistence
+   */
+  async getLeetCodeUserId(): Promise<string | null> {
+    try {
+      return await safeSecureGet(STORAGE_KEYS.LEETCODE_USER_ID);
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to get stored LeetCode user ID", e);
+      return null;
+    }
+  }
+
+  async setLeetCodeUserId(userId: string): Promise<void> {
+    try {
+      await safeSecureSet(STORAGE_KEYS.LEETCODE_USER_ID, userId);
+      logger.debug("STORAGE", `Persisted LeetCode user ID: ${userId}`);
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to save LeetCode user ID", e);
+    }
+  }
+
+  async getLeetCodeLastCheck(): Promise<number> {
+    try {
+      const val = await safeSecureGet(STORAGE_KEYS.LEETCODE_LAST_CHECK);
+      return val ? parseInt(val, 10) || 0 : 0;
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to get LeetCode last check time", e);
+      return 0;
+    }
+  }
+
+  async setLeetCodeLastCheck(timestamp: number): Promise<void> {
+    try {
+      await safeSecureSet(STORAGE_KEYS.LEETCODE_LAST_CHECK, String(timestamp));
+      logger.debug("STORAGE", `Persisted LeetCode reminder check timestamp: ${timestamp}`);
+    } catch (e) {
+      logger.debug("STORAGE", "Failed to save LeetCode last check time", e);
     }
   }
 }

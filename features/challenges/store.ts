@@ -234,7 +234,16 @@ export const useChallengeStore = create<ChallengeState>((set, get) => ({
                 ? raw.points
                 : increase * 10;
 
+            const participantId =
+              (raw._id as string) ||
+              (userObj?._id as string) ||
+              (userObj?.id as string) ||
+              (raw.userId as string) ||
+              "";
+
             return {
+              _id: participantId,
+              userId: participantId,
               rank: entry.rank ?? idx + 1,
               name,
               roll_no,
@@ -351,7 +360,16 @@ export const useChallengeStore = create<ChallengeState>((set, get) => ({
                 ? raw.points
                 : increase * 10;
 
+            const participantId =
+              (raw._id as string) ||
+              (userObj?._id as string) ||
+              (userObj?.id as string) ||
+              (raw.userId as string) ||
+              "";
+
             return {
+              _id: participantId,
+              userId: participantId,
               rank: entry.rank ?? idx + 1,
               name,
               roll_no,

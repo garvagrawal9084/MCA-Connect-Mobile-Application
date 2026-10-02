@@ -109,29 +109,37 @@ export const challengesApi = {
   },
 
   /**
-   * Join a challenge (Self-enrollment or by userId)
-   * Tries POST /api/challenges/:id/join or fallback to POST /api/challenges/:id/users/:userId
+   * Join a challenge (Self-enrollment)
+   * Endpoint: POST /api/challenges/:id/join with body: { agreedToTerms: true }
+   * Fallback: POST /api/challenges/:id/users/:userId (admin/faculty route if needed)
    */
   async joinChallenge(
     challengeId: string,
-    userId?: string
+    options?: { agreedToTerms?: boolean; userId?: string } | string
   ): Promise<ApiResponse<{ challenge: Challenge }>> {
     logger.info("CHALLENGES_API", `Joining challenge: ${challengeId}`);
-    if (userId) {
-      return apiClient.post<{ challenge: Challenge }>(
-        `/api/challenges/${challengeId}/users/${userId}`
-      );
-    }
-    // Attempt standard self-join endpoint
+    const agreedToTerms =
+      typeof options === "object" && options !== null
+        ? options.agreedToTerms ?? true
+        : true;
+    const userId = typeof options === "string" ? options : options?.userId;
+
     try {
       return await apiClient.post<{ challenge: Challenge }>(
-        `/api/challenges/${challengeId}/join`
+        API_CONFIG.ENDPOINTS.CHALLENGES.JOIN(challengeId),
+        { agreedToTerms }
       );
-    } catch {
-      // Fallback
-      return apiClient.post<{ challenge: Challenge }>(
-        `/api/challenges/${challengeId}/join`
-      );
+    } catch (primaryErr) {
+      if (userId) {
+        logger.warn(
+          "CHALLENGES_API",
+          `Self-join failed; attempting admin/user join fallback for user ${userId}`
+        );
+        return apiClient.post<{ challenge: Challenge }>(
+          `/api/challenges/${challengeId}/users/${userId}`
+        );
+      }
+      throw primaryErr;
     }
   },
 

@@ -10,6 +10,7 @@ export type BuiltInTriggerType =
   | "RESULT_PUBLISHED"
   | "CAMPUS_ANNOUNCEMENT"
   | "CHALLENGE_INVITE"
+  | "LEETCODE_DAILY_REMINDER"
   | "CUSTOM_ALERT";
 
 export type TriggerType = BuiltInTriggerType | (string & {});
@@ -81,6 +82,13 @@ export interface TriggerPayloadMap {
     title: string;
     deadline?: string;
     points?: number;
+  };
+  LEETCODE_DAILY_REMINDER: {
+    challengeId?: string;
+    title?: string;
+    body?: string;
+    dailyTotal?: number;
+    [key: string]: unknown;
   };
   CUSTOM_ALERT: {
     title: string;

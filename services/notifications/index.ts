@@ -9,4 +9,6 @@ export * from "./triggerRegistry";
 export * from "./notificationPermissions";
 export * from "./notificationEngine";
 export * from "./notificationWatcher";
+export * from "./leetcodeReminderWatcher";
+export * from "./backgroundNotificationTask";
 export { notificationEngine as default } from "./notificationEngine";

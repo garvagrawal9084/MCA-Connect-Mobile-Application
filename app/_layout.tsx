@@ -10,6 +10,7 @@ import {
   getActiveExpoPushToken,
 } from "@/services/notifications/notificationPermissions";
 import { notificationWatcher } from "@/services/notifications/notificationWatcher";
+import { leetcodeReminderWatcher } from "@/services/notifications/leetcodeReminderWatcher";
 import { jobWatcher } from "@/features/placement/jobWatcher";
 import { usePlacementCenterStore } from "@/features/placement/store";
 import { useNotificationsStore } from "@/features/notifications/store";
@@ -47,6 +48,9 @@ export default function RootLayout() {
         notificationWatcher.syncAndCheckNotifications().catch((err) => {
           logger.debug("LAYOUT", "Initial notification sync skipped", err);
         });
+        leetcodeReminderWatcher.init().catch((err) => {
+          logger.debug("LAYOUT", "Initial LeetCode reminder watcher init skipped", err);
+        });
       }
     });
 
@@ -63,6 +67,9 @@ export default function RootLayout() {
         );
         notificationWatcher.syncAndCheckNotifications({ silent: false }).catch((e) =>
           logger.debug("LAYOUT", "Foreground notification sync deferred", e)
+        );
+        leetcodeReminderWatcher.checkIfNeeded().catch((e) =>
+          logger.debug("LAYOUT", "Foreground LeetCode reminder check deferred", e)
         );
         useNotificationsStore.getState().fetchNotifications().catch(() => {});
         useNotificationsStore.getState().fetchUnreadCount().catch(() => {});
@@ -105,6 +112,20 @@ export default function RootLayout() {
             pushToken: getActiveExpoPushToken() || undefined,
           })
           .catch((err) => logger.debug("NOTIFICATIONS", "Reporting push opened event failed", err));
+      }
+
+      if (
+        data.type === "LEETCODE_DAILY_REMINDER" ||
+        nestedData?.type === "LEETCODE_DAILY_REMINDER" ||
+        data.action === "open_challenges" ||
+        nestedData?.action === "open_challenges"
+      ) {
+        logger.info("NOTIFICATIONS", "Notification tap for LeetCode reminder: routing to Placement Challenges");
+        router.push({
+          pathname: "/(app)/(tabs)/placement",
+          params: { feature: "challenges", openModal: "challenges" },
+        } as never);
+        return;
       }
 
       const rawJobId = data.jobId || nestedData?.jobId;

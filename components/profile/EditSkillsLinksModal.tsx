@@ -79,6 +79,7 @@ export function EditSkillsLinksModal({
         github: github.trim(),
         linkedin: linkedin.trim(),
         leetcodeUsername: leetcodeUsername.trim(),
+        leetcode: leetcodeUsername.trim(),
         gfg: gfg.trim(),
         codeforces: codeforces.trim(),
       };

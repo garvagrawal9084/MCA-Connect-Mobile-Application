@@ -381,4 +381,27 @@
       - TypeScript (npx tsc --noEmit): 0 errors.
       - Version Bump: v2.1.4 in package.json & app.json. Status: RESOLVED.
 
+  [2026-10-02 10:25:00.000] [INFO]  [LEETCODE_API_ALIGNMENT_AND_3HOUR_REMINDER] Implemented backend LeetCode API contract alignment and 3-hour streak reminder worker:
+    - Origin: SCIS Connect LeetCode APIs Specification.
+    - Contracts Aligned:
+      1. Updated `challengesApi.joinChallenge` in `features/challenges/api.ts` to call `POST /api/challenges/:id/join` with body `{ agreedToTerms: true }`.
+      2. Preserved participant `_id` and `userId` across challenge and global leaderboard normalizers in `features/challenges/store.ts`.
+      3. Added `profileApi.updateLeetCodeUsername` calling `PATCH /api/profile` with `{ leetcode }`, and updated `EditSkillsLinksModal.tsx` to transmit `{ leetcode, leetcodeUsername }`.
+      4. Wired pull-to-refresh on challenges to trigger `profileApi.syncLeetCode()` (`POST /api/profile/sync-leetcode`).
+    - Periodic 3-Hour Streak Reminder Architecture:
+      1. Implemented `services/notifications/leetcodeReminderWatcher.ts` performing scheduled checks every 3 hours.
+      2. Persisted student user ID locally in SecureStore under `scis_leetcode_user_id`.
+      3. Configured Quiet Hours suppression window (11:00 PM to 8:00 AM local time).
+      4. Filtered running challenges (`startDate <= now <= endDate`) and verified student's `dailyTotal` solves on each leaderboard.
+      5. Configured high-importance Android notification channel `leetcode-practice` and trigger `LEETCODE_DAILY_REMINDER`: "You haven't solved any LeetCode question today 👀 – keep your streak alive!".
+      6. Registered headless periodic background task `SCIS_LEETCODE_REMINDER_TASK` with Android WorkManager via `expo-background-fetch` (3-hour interval, boot auto-start).
+      7. Enabled deep link handling: tapping the notification immediately routes to Placement Studio and opens the Challenges modal sheet.
+      8. Wired clean worker and timer cancellation on user logout in `features/auth/authStore.ts`.
+    - Documentation & Standards:
+      - Created `docs/leetcode-api-alignment-and-3hour-reminder.md`.
+      - Created educational guide `learning/48-leetcode-api-alignment-and-periodic-workmanager-reminders.md`.
+      - Bumped version to `2.2.0` in `package.json` and `app.json`.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
+
 

@@ -15,6 +15,8 @@ import {
   registerForPushNotificationsAsync,
   unregisterPushNotificationsAsync,
 } from "@/services/notifications/notificationPermissions";
+import { leetcodeReminderWatcher } from "@/services/notifications/leetcodeReminderWatcher";
+import { unregisterLeetcodeReminderTaskAsync } from "@/services/notifications/backgroundNotificationTask";
 
 export interface AuthState {
   user: AuthUser | null;
@@ -195,6 +197,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     logger.info("AUTH_STORE", "Logging out student and resetting auth state");
     void unregisterPushNotificationsAsync();
+    void unregisterLeetcodeReminderTaskAsync();
+    leetcodeReminderWatcher.stop();
     storageService.clearSession();
     jobWatcher.reset();
     notificationWatcher.reset();

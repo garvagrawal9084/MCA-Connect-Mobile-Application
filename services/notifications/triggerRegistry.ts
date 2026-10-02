@@ -128,6 +128,25 @@ export const triggerRegistry: Record<string, TriggerDefinition<any>> = {
     }),
   },
 
+  LEETCODE_DAILY_REMINDER: {
+    channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id,
+    defaultPriority: "high",
+    formatter: (payload) => ({
+      title: payload.title || "LeetCode Practice Alert",
+      body:
+        payload.body ||
+        "You haven't solved any LeetCode question today 👀 – keep your streak alive!",
+      subTitle: "SCIS Coding Challenges",
+      data: {
+        type: "LEETCODE_DAILY_REMINDER",
+        screen: "/(app)/(tabs)/placement?feature=challenges",
+        openModal: "challenges",
+        action: "open_challenges",
+        challengeId: payload.challengeId,
+      },
+    }),
+  },
+
   CUSTOM_ALERT: {
     channelId: NOTIFICATION_CHANNELS.GENERAL.id,
     defaultPriority: "default",
