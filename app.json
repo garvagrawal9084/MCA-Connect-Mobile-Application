@@ -2,7 +2,7 @@
   "expo": {
     "name": "SCIS-CONNECT",
     "slug": "SCIS-CONNECT",
-    "version": "2.2.4",
+    "version": "2.2.5",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "scisconnect",
@@ -25,7 +25,8 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",

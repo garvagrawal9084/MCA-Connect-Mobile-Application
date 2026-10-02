@@ -53,7 +53,7 @@ export const NOTIFICATION_CHANNELS: Record<string, AndroidChannelConfig> = {
     id: "leetcode-practice",
     name: "LeetCode Daily Challenges",
     description: "Reminders to maintain your daily problem-solving streak and challenge standings",
-    importance: "high",
+    importance: "max",
     sound: true,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: "#D97706",

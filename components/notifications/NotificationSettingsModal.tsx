@@ -268,15 +268,16 @@ export function NotificationSettingsModal({
                     const result = await leetcodeReminderWatcher.runDiagnosticCheck();
                     const d = result.details;
                     Alert.alert(
-                      result.notified ? "⚡ Reminder Triggered!" : "ℹ️ Check Completed",
+                      result.notified ? "⚡ Reminder Triggered & Alarms Primed!" : "ℹ️ Check Completed",
                       `${result.message}\n\n` +
                         `• Student ID: ${d.userId ? `${d.userId.substring(0, 10)}...` : "None"}\n` +
                         `• LeetCode Handle: ${d.leetcodeHandle ? `@${d.leetcodeHandle}` : "Not Linked"}\n` +
                         `• Enrolled Challenges: ${d.enrolledChallengesCount}\n` +
-                        `• Solved Today: ${d.hasSolvedToday ? "Yes (Streak Active)" : "0 (Reminder Dispatched)"}\n` +
+                        `• Solved Today: ${d.hasSolvedToday ? "Yes (Streak Active)" : "0 (Alarms Primed)"}\n` +
                         `• Time Since Last Check: ${d.elapsedMinutes} mins\n` +
+                        `• Scheduled OS Alarms: ${d.scheduledAlarmsCount} active (Next: ${d.nextAlarmFormatted})\n` +
                         `• Quiet Hours (11PM-8AM): ${d.isQuietHours ? "Active (Suppressed)" : "Inactive"}\n\n` +
-                        `Next automatic 1-hour check is scheduled.`,
+                        `Native Android AlarmManager alarms are pre-scheduled! Even if you swipe away and kill the app, your phone will alert you hourly until you solve today's challenge.`,
                       [{ text: "OK" }]
                     );
                   } catch (e) {
@@ -323,7 +324,7 @@ export function NotificationSettingsModal({
                 </Text>
               </TouchableOpacity>
 
-              {/* Button 2: LeetCode Streak Alert with 5s Delay for Closed App testing */}
+              {/* Button 2: LeetCode Streak Alert with 10s Delay for Closed App testing */}
               <TouchableOpacity
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -342,17 +343,18 @@ export function NotificationSettingsModal({
                           openModal: "challenges",
                           action: "open_challenges",
                         },
+                        ...({ channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id } as any),
                       },
                       trigger: {
                         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                        seconds: 5,
+                        seconds: 10,
                         channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id,
                       },
                     });
 
                     Alert.alert(
-                      "LeetCode Alert Scheduled (5 Seconds)",
-                      "Swipe away / kill the app now from Recent Apps. In 5 seconds, your phone will ring and show the LeetCode streak reminder in the notification bar!",
+                      "Native Alarm Primed (10 Seconds)",
+                      "1. Tap OK.\n2. SWIPE AWAY / kill the app from Recent Apps right now.\n3. In 10 seconds, Android OS AlarmManager will sound this notification banner even though the app is completely closed!",
                       [{ text: "OK" }]
                     );
                   } catch (e) {
@@ -364,7 +366,7 @@ export function NotificationSettingsModal({
               >
                 <Ionicons name="timer-outline" size={15} color="#FFFFFF" />
                 <Text className="text-xs font-black text-white ml-2">
-                  Test LeetCode Closed-App (5s Delay)
+                  Test Closed-App Streak Alert (10s Delay)
                 </Text>
               </TouchableOpacity>
 

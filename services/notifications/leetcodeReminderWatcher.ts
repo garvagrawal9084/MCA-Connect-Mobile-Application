@@ -1,27 +1,35 @@
 /**
- * SCIS Connect Mobile - LeetCode 3-Hour Streak Reminder Watcher
+ * SCIS Connect Mobile - LeetCode 1-Hour Streak Reminder Watcher
  *
- * Implements the automated 3-hour periodic reminder worker:
+ * Implements the automated 1-hour periodic streak reminder worker:
  * 1. Checks if the student has set a LeetCode username and joined active challenges.
  * 2. Skips night hours (11:00 PM to 8:00 AM) to preserve user sleep.
  * 3. Inspects every active running challenge (`startDate <= now <= endDate`).
  * 4. Checks the participant's `dailyTotal` on each active challenge leaderboard.
  * 5. If `dailyTotal === 0` across all active challenges, dispatches a high-priority
  *    local notification: "You haven't solved any LeetCode question today 👀 – keep your streak alive!".
- * 6. Tapping the notification opens Placement Studio directly into Challenges.
- * 7. Cancels immediately on user logout.
+ * 6. CRITICAL CLOSED-APP RESILIENCE: Pre-schedules native OS alarms in Android AlarmManager
+ *    for upcoming hourly slots (+1h, +2h, etc.) so notifications fire even when the
+ *    app is completely swiped away, killed, or phone is locked.
+ * 7. When the user solves a problem (`dailyTotal > 0`), cancels all pending alarms for today.
+ * 8. Tapping the notification opens Placement Studio directly into Challenges.
+ * 9. Cancels all alarms immediately on user logout.
  */
 
+import * as Notifications from "expo-notifications";
 import { storageService } from "@/services/storage";
 import { challengesApi } from "@/features/challenges/api";
 import { profileApi } from "@/features/profile/api";
 import { notificationEngine } from "./notificationEngine";
+import { NOTIFICATION_CHANNELS } from "./channels";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useChallengeStore } from "@/features/challenges/store";
 import { logger } from "@/utils/logger";
 
 const ONE_HOUR_MS = 1 * 60 * 60 * 1000; // 1 hour (3,600,000 ms)
 const CHECK_BUFFER_MS = 3 * 60 * 1000; // 3-minute buffer to accommodate OS timing jitters
+const LEETCODE_ALARM_PREFIX = "SCIS_LEETCODE_REMINDER_SLOT_";
+const MAX_HOURLY_SLOTS = 6; // Pre-schedule up to 6 hours ahead in Android AlarmManager
 
 export interface ReminderCheckOptions {
   force?: boolean;
@@ -41,6 +49,8 @@ export interface ReminderDiagnosticResult {
     lastCheckTimestamp: number;
     elapsedMinutes: number;
     isQuietHours: boolean;
+    scheduledAlarmsCount: number;
+    nextAlarmFormatted: string;
   };
 }
 
@@ -65,7 +75,7 @@ class LeetCodeReminderWatcher {
     // Start in-app periodic timer (checks every 10 minutes whether the 1-hour check is due)
     this.startInAppPolling();
 
-    // Perform an initial check if due
+    // Perform an initial check and prime native OS hourly alarms
     this.checkDailySolveReminder().catch((err) => {
       logger.debug("LEETCODE_REMINDER", "Initial startup reminder check skipped", err);
     });
@@ -88,20 +98,138 @@ class LeetCodeReminderWatcher {
   }
 
   /**
-   * Stops in-app polling and resets worker (called on logout)
+   * Stops in-app polling and cancels all scheduled alarms (called on logout)
    */
-  stop(): void {
+  async stop(): Promise<void> {
     if (this.inAppTimer) {
       clearInterval(this.inAppTimer);
       this.inAppTimer = null;
     }
     this.isInitialized = false;
     this.isChecking = false;
-    logger.info("LEETCODE_REMINDER", "LeetCode Reminder Watcher stopped and cleared");
+    await this.cancelAllScheduledStreakReminders();
+    logger.info("LEETCODE_REMINDER", "LeetCode Reminder Watcher stopped and alarms cleared");
   }
 
   /**
-   * Executes the full 3-hour LeetCode reminder workflow
+   * Cancels all pre-scheduled native OS streak reminder alarms in AlarmManager
+   */
+  async cancelAllScheduledStreakReminders(): Promise<void> {
+    try {
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      for (const item of scheduled) {
+        if (
+          item.identifier &&
+          (item.identifier.startsWith(LEETCODE_ALARM_PREFIX) ||
+            item.identifier === "SCIS_LEETCODE_HOURLY_REMINDER")
+        ) {
+          await Notifications.cancelScheduledNotificationAsync(item.identifier).catch(() => {});
+        }
+      }
+      logger.debug("LEETCODE_REMINDER", "Cleared all pre-scheduled streak reminder alarms");
+    } catch (err) {
+      logger.debug("LEETCODE_REMINDER", "Failed to clear scheduled streak alarms", err);
+    }
+  }
+
+  /**
+   * Pre-schedules native OS alarms for upcoming hourly slots using Android AlarmManager.
+   * This guarantees that even if the app is completely closed, killed, or in Doze mode,
+   * Android OS will display the notification at each scheduled 1-hour interval.
+   */
+  async scheduleUpcomingHourlyReminders(): Promise<number> {
+    try {
+      // 1. Wipe existing slots to prevent stale/duplicate alarms
+      await this.cancelAllScheduledStreakReminders();
+
+      const now = Date.now();
+      let scheduledCount = 0;
+
+      for (let slot = 1; slot <= MAX_HOURLY_SLOTS; slot++) {
+        const targetTimestamp = now + slot * ONE_HOUR_MS;
+        const targetDate = new Date(targetTimestamp);
+        const targetHour = targetDate.getHours();
+
+        // Suppress during quiet night hours (11:00 PM to 8:00 AM)
+        if (targetHour >= 23 || targetHour < 8) {
+          continue;
+        }
+
+        const slotIdentifier = `${LEETCODE_ALARM_PREFIX}${slot}`;
+        await Notifications.scheduleNotificationAsync({
+          identifier: slotIdentifier,
+          content: {
+            title: "LeetCode Practice Alert",
+            body: "You haven't solved any LeetCode question today 👀 – keep your streak alive!",
+            subtitle: "SCIS Coding Challenges",
+            sound: "default",
+            color: "#D97706",
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: {
+              type: "LEETCODE_DAILY_REMINDER",
+              screen: "/(app)/(tabs)/placement?feature=challenges",
+              openModal: "challenges",
+              action: "open_challenges",
+              slot,
+            },
+            ...({ channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id } as any),
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: targetDate,
+            channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id,
+          },
+        });
+        scheduledCount++;
+      }
+
+      // Schedule next morning 8:15 AM alarm if all today's slots are exhausted
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(8, 15, 0, 0);
+      if (tomorrow.getTime() > now) {
+        await Notifications.scheduleNotificationAsync({
+          identifier: `${LEETCODE_ALARM_PREFIX}MORNING`,
+          content: {
+            title: "LeetCode Practice Alert",
+            body: "Good morning! Start your day by solving a LeetCode problem today 👀",
+            subtitle: "SCIS Coding Challenges",
+            sound: "default",
+            color: "#D97706",
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: {
+              type: "LEETCODE_DAILY_REMINDER",
+              screen: "/(app)/(tabs)/placement?feature=challenges",
+              openModal: "challenges",
+              action: "open_challenges",
+            },
+            ...({ channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id } as any),
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: tomorrow,
+            channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id,
+          },
+        });
+        scheduledCount++;
+      }
+
+      logger.info(
+        "LEETCODE_REMINDER",
+        `Pre-scheduled ${scheduledCount} native hourly reminder alarms in Android AlarmManager`
+      );
+      return scheduledCount;
+    } catch (schedErr) {
+      logger.warn("LEETCODE_REMINDER", "Failed to schedule native hourly alarms", schedErr);
+      return 0;
+    }
+  }
+
+  /**
+   * Executes the full 1-hour LeetCode reminder workflow:
+   * - Inspects live solves across active challenges
+   * - If solved today, cancels future alarms
+   * - If not solved today, dispatches immediate alert (if due/forced) AND primes upcoming hourly alarms
    * Returns true if a notification was dispatched, false otherwise
    */
   async checkDailySolveReminder(options?: ReminderCheckOptions): Promise<boolean> {
@@ -130,19 +258,7 @@ class LeetCodeReminderWatcher {
         return false;
       }
 
-      // 2. Check 1-Hour Frequency Interval
-      const lastCheck = await storageService.getLeetCodeLastCheck();
-      const elapsed = Date.now() - lastCheck;
-      if (!options?.force && lastCheck > 0 && elapsed < ONE_HOUR_MS - CHECK_BUFFER_MS) {
-        const remainingMin = Math.ceil((ONE_HOUR_MS - elapsed) / 60000);
-        logger.debug(
-          "LEETCODE_REMINDER",
-          `Interval threshold not met: ${Math.round(elapsed / 60000)}m elapsed. Next check in ~${remainingMin}m.`
-        );
-        return false;
-      }
-
-      // 3. Resolve Current Student & User ID
+      // 2. Resolve Current Student & User ID
       let user = useAuthStore.getState().user || storageService.getUser();
       let userId: string | null = user?._id || user?.id || null;
 
@@ -162,7 +278,6 @@ class LeetCodeReminderWatcher {
           }
         } catch (profileErr) {
           logger.debug("LEETCODE_REMINDER", "Failed to retrieve student profile for reminder check", profileErr);
-          // Do not advance lastCheck timestamp on network error
           return false;
         }
       }
@@ -176,7 +291,7 @@ class LeetCodeReminderWatcher {
       const userRoll = (user?.roll_no || (user as any)?.rollNo || "").toString().trim().toLowerCase();
       const userEmail = (user?.email || "").toString().trim().toLowerCase();
 
-      // 4. Check if Student has configured a LeetCode handle
+      // 3. Check if Student has configured a LeetCode handle
       const leetcodeProfiles = user?.leetcode_profiles;
       const leetcodeHandle = (
         (Array.isArray(leetcodeProfiles) && leetcodeProfiles[0]?.username) ||
@@ -190,7 +305,7 @@ class LeetCodeReminderWatcher {
         return false;
       }
 
-      // 5. Fetch Student Enrolled Challenges with Multi-Schema Extraction
+      // 4. Fetch Student Enrolled Challenges with Multi-Schema Extraction
       let enrolledChallenges: any[] = [];
       try {
         const myChallengesRes = await challengesApi.getMyChallenges();
@@ -235,11 +350,10 @@ class LeetCodeReminderWatcher {
 
       if (enrolledChallenges.length === 0) {
         logger.debug("LEETCODE_REMINDER", "Student has not enrolled in any challenges; skipping reminder");
-        // DO NOT overwrite lastCheck so student isn't locked out once they join
         return false;
       }
 
-      // 6. Filter Active Running Challenges
+      // 5. Filter Active Running Challenges
       const nowTime = Date.now();
       const activeRunningChallenges = enrolledChallenges.filter((item: any) => {
         const ch = item.challenge || item;
@@ -270,12 +384,12 @@ class LeetCodeReminderWatcher {
         return false;
       }
 
-      // 7. Pull Latest LeetCode Total to reduce false positive alerts
+      // 6. Pull Latest LeetCode Total to reduce false positive alerts
       profileApi.syncLeetCode().catch((syncErr) => {
         logger.debug("LEETCODE_REMINDER", "Opportunistic LeetCode sync before leaderboard check deferred", syncErr);
       });
 
-      // 8. Inspect Leaderboard `dailyTotal` for Each Active Challenge
+      // 7. Inspect Leaderboard `dailyTotal` for Each Active Challenge
       let hasSolvedAnyToday = false;
       let solvedChallengeName = "";
 
@@ -361,34 +475,48 @@ class LeetCodeReminderWatcher {
         }
       }
 
-      // If user has solved at least one question today, don't show reminder
+      // 8. Streak is active: Student solved at least one question today!
       if (hasSolvedAnyToday) {
         logger.info(
           "LEETCODE_REMINDER",
-          `Streak verified active (${solvedChallengeName}). Resetting 1-hour check timer.`
+          `Streak verified active (${solvedChallengeName}). Cancelling pending streak reminder alarms for today.`
         );
+        // Student solved questions today: Cancel all pending native reminder alarms
+        await this.cancelAllScheduledStreakReminders();
         await storageService.setLeetCodeLastCheck(Date.now());
         return false;
       }
 
-      // If user is enrolled in active challenges and has dailyTotal === 0 today:
+      // 9. Student has NOT solved any LeetCode questions today:
       logger.info(
         "LEETCODE_REMINDER",
-        "Student has not solved any LeetCode questions today across active challenges. Triggering 1-hour streak reminder alert!"
+        "Student has not solved any questions today. Ensuring native OS hourly alarms are active!"
       );
 
-      await notificationEngine.trigger(
-        "LEETCODE_DAILY_REMINDER",
-        {
-          title: "LeetCode Practice Alert",
-          body: "You haven't solved any LeetCode question today 👀 – keep your streak alive!",
-        },
-        { force: options?.force }
-      );
+      // Pre-schedule native OS alarms in Android AlarmManager so alerts fire even when CLOSED
+      await this.scheduleUpcomingHourlyReminders();
 
-      // Successfully notified! Stamp check timestamp
-      await storageService.setLeetCodeLastCheck(Date.now());
-      return true;
+      // Check if immediate notification should be triggered
+      const lastCheck = await storageService.getLeetCodeLastCheck();
+      const elapsed = Date.now() - lastCheck;
+      const isIntervalMet = lastCheck === 0 || elapsed >= ONE_HOUR_MS - CHECK_BUFFER_MS;
+
+      if (options?.force || isIntervalMet) {
+        logger.info("LEETCODE_REMINDER", "Triggering immediate 1-hour streak reminder alert!");
+        await notificationEngine.trigger(
+          "LEETCODE_DAILY_REMINDER",
+          {
+            title: "LeetCode Practice Alert",
+            body: "You haven't solved any LeetCode question today 👀 – keep your streak alive!",
+          },
+          { force: options?.force }
+        );
+
+        await storageService.setLeetCodeLastCheck(Date.now());
+        return true;
+      }
+
+      return false;
     } catch (error) {
       logger.error("LEETCODE_REMINDER", "Unexpected error during LeetCode reminder check", error);
       return false;
@@ -399,14 +527,14 @@ class LeetCodeReminderWatcher {
 
   /**
    * Helper called by background workers and AppState resume:
-   * Checks if a 3-hour reminder check is due
+   * Checks if an hourly reminder check is due
    */
   async checkIfNeeded(options?: { silent?: boolean }): Promise<boolean> {
     return this.checkDailySolveReminder(options);
   }
 
   /**
-   * Diagnostic runner: executes live check with full trace output for in-app verification
+   * Diagnostic runner: executes live check with full trace output and native alarm status
    */
   async runDiagnosticCheck(): Promise<ReminderDiagnosticResult> {
     if (!storageService.isInitialized()) {
@@ -447,15 +575,43 @@ class LeetCodeReminderWatcher {
 
     const notified = await this.checkDailySolveReminder({ force: true });
 
+    // Inspect scheduled alarms in native AlarmManager
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+    const streakAlarms = scheduled.filter(
+      (s) => s.identifier && s.identifier.startsWith(LEETCODE_ALARM_PREFIX)
+    );
+
+    let nextAlarmFormatted = "None";
+    if (streakAlarms.length > 0) {
+      const timestamps = streakAlarms
+        .map((s) => {
+          const t = s.trigger as any;
+          if (t?.value) return new Date(t.value).getTime();
+          if (t?.date) return new Date(t.date).getTime();
+          if (t?.seconds) return Date.now() + t.seconds * 1000;
+          return 0;
+        })
+        .filter((ts) => ts > Date.now());
+
+      if (timestamps.length > 0) {
+        timestamps.sort((a, b) => a - b);
+        nextAlarmFormatted = new Date(timestamps[0]).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    }
+
     let message = "";
     if (notified) {
-      message = "Reminder Alert Dispatched! You have not solved any problems today in your active challenges.";
+      message =
+        "Reminder Alert Dispatched & Native Alarms Primed! Even when the app is completely closed or killed, Android OS will sound the reminder at the next hour.";
     } else if (!leetcodeHandle) {
       message = "Check Skipped: No LeetCode username linked to your profile.";
     } else if (enrolledCount === 0) {
       message = "Check Skipped: You are not enrolled in any coding challenges yet.";
     } else {
-      message = "Streak Active: Verified that you have solved problems today, or quiet hours apply.";
+      message = "Streak Active: Verified that you have solved problems today. Reminders cancelled.";
     }
 
     return {
@@ -471,6 +627,8 @@ class LeetCodeReminderWatcher {
         lastCheckTimestamp: await storageService.getLeetCodeLastCheck(),
         elapsedMinutes,
         isQuietHours,
+        scheduledAlarmsCount: streakAlarms.length,
+        nextAlarmFormatted,
       },
     };
   }

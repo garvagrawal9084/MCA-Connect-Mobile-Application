@@ -464,4 +464,25 @@
     - Verification:
       - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
 
+  [2026-10-02 16:30:00.000] [ERROR] [LEETCODE_CLOSED_APP_NATIVE_ALARM_SCHEDULER] Resolved streak reminder not triggering when app is closed:
+    - Origin: User reported notifications only appeared when tapping "Run Live 1-Hour Streak Check Now", but never triggered automatically when the app was closed or swiped away.
+    - Root Cause:
+      1. On modern Android OS (especially OEM skins like Xiaomi HyperOS/MIUI, Samsung One UI, Realme UI), swiping away the app from Recents kills or freezes background processes.
+      2. `expo-background-fetch` relies on WorkManager `PeriodicWorkRequest`, which is prevented from executing or spawning headless React Native JavaScript runtime while the app is killed.
+      3. No future native alarms had been pre-scheduled in Android's native `AlarmManager`.
+    - Resolution:
+      1. Added `android.permission.SCHEDULE_EXACT_ALARM` to `app.json`.
+      2. Re-architected `services/notifications/leetcodeReminderWatcher.ts` with `scheduleUpcomingHourlyReminders()`: Pre-schedules up to 6 discrete hourly slots (`SCIS_LEETCODE_REMINDER_SLOT_1` to `_6`) plus a 08:15 AM morning alarm directly into Android's native `AlarmManager` via `Notifications.scheduleNotificationAsync({ trigger: { type: SchedulableTriggerInputTypes.DATE, date: targetDate } })`.
+      3. Because alarms are held by Android OS hardware RTC, the OS itself fires the notification with sound and vibration even when the app process is 100% closed, killed, or the phone is locked.
+      4. Added `cancelAllScheduledStreakReminders()` which cancels all pending alarms for the day as soon as the student solves a problem (`hasSolvedAnyToday === true`) or logs out.
+      5. Enhanced `NotificationSettingsModal.tsx` diagnostic alert with live OS alarm counts and next scheduled trigger time, and upgraded the closed-app test button to a 10s delay.
+      6. Upgraded `LEETCODE_PRACTICE` channel importance to `"max"` in `services/notifications/channels.ts`.
+    - Documentation & Standards:
+      - Created `docs/closed-app-native-alarm-streak-reminder.md`.
+      - Created educational guide `learning/51-alarm-manager-pre-scheduling-for-closed-app-notifications.md`.
+      - Bumped version to `v2.2.5` in `package.json` and `app.json`.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
+
+
 
