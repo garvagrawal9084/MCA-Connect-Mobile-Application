@@ -17,6 +17,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import { useNotificationsStore } from "@/features/notifications/store";
+import { notificationEngine } from "@/services/notifications";
+import { NOTIFICATION_CHANNELS } from "@/services/notifications/channels";
 
 interface NotificationSettingsModalProps {
   visible: boolean;
@@ -253,9 +255,86 @@ export function NotificationSettingsModal({
               </View>
 
               <Text className="text-[11px] text-slate-600 dark:text-slate-400 leading-4 mb-3">
-                Test whether your device&apos;s native notification manager can display alerts when the app is completely closed.
+                Verify that your device's native notification channels, sound, vibration, and background tap routing are operating correctly.
               </Text>
 
+              {/* Button 1: Immediate LeetCode Streak Alert */}
+              <TouchableOpacity
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  try {
+                    await notificationEngine.trigger(
+                      "LEETCODE_DAILY_REMINDER",
+                      {
+                        title: "LeetCode Practice Alert",
+                        body: "You haven't solved any LeetCode question today 👀 – keep your streak alive!",
+                      },
+                      { force: true }
+                    );
+                    Alert.alert(
+                      "LeetCode Alert Triggered",
+                      "A live streak reminder notification was sent to your system status bar! Pull down the status bar and tap it to test deep linking to Challenges.",
+                      [{ text: "OK" }]
+                    );
+                  } catch (e) {
+                    Alert.alert("Test Failed", String(e));
+                  }
+                }}
+                className="bg-amber-600 dark:bg-amber-700 py-2.5 px-4 rounded-xl flex-row items-center justify-center shadow-xs mb-2.5"
+                activeOpacity={0.8}
+              >
+                <Ionicons name="code-slash" size={15} color="#FFFFFF" />
+                <Text className="text-xs font-black text-white ml-2">
+                  Test LeetCode Streak Alert (Immediate)
+                </Text>
+              </TouchableOpacity>
+
+              {/* Button 2: LeetCode Streak Alert with 5s Delay for Closed App testing */}
+              <TouchableOpacity
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  try {
+                    await Notifications.scheduleNotificationAsync({
+                      content: {
+                        title: "LeetCode Practice Alert",
+                        body: "You haven't solved any LeetCode question today 👀 – keep your streak alive!",
+                        subtitle: "SCIS Coding Challenges",
+                        sound: "default",
+                        color: "#D97706",
+                        priority: Notifications.AndroidNotificationPriority.HIGH,
+                        data: {
+                          type: "LEETCODE_DAILY_REMINDER",
+                          screen: "/(app)/(tabs)/placement?feature=challenges",
+                          openModal: "challenges",
+                          action: "open_challenges",
+                        },
+                      },
+                      trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                        seconds: 5,
+                        channelId: NOTIFICATION_CHANNELS.LEETCODE_PRACTICE.id,
+                      },
+                    });
+
+                    Alert.alert(
+                      "LeetCode Alert Scheduled (5 Seconds)",
+                      "Swipe away / kill the app now from Recent Apps. In 5 seconds, your phone will ring and show the LeetCode streak reminder in the notification bar!",
+                      [{ text: "OK" }]
+                    );
+                  } catch (e) {
+                    Alert.alert("Test Failed", String(e));
+                  }
+                }}
+                className="bg-slate-800 dark:bg-slate-700 py-2.5 px-4 rounded-xl flex-row items-center justify-center shadow-xs mb-2.5"
+                activeOpacity={0.8}
+              >
+                <Ionicons name="timer-outline" size={15} color="#FFFFFF" />
+                <Text className="text-xs font-black text-white ml-2">
+                  Test LeetCode Closed-App (5s Delay)
+                </Text>
+              </TouchableOpacity>
+
+              {/* Button 3: General Closed-App Diagnostic */}
               <TouchableOpacity
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -283,12 +362,12 @@ export function NotificationSettingsModal({
                     Alert.alert("Test Failed", String(e));
                   }
                 }}
-                className="bg-red-800 dark:bg-red-700 py-2.5 px-4 rounded-xl flex-row items-center justify-center shadow-sm"
+                className="bg-red-800 dark:bg-red-700 py-2.5 px-4 rounded-xl flex-row items-center justify-center shadow-xs"
                 activeOpacity={0.8}
               >
-                <Ionicons name="timer-outline" size={15} color="#FFFFFF" />
+                <Ionicons name="notifications-outline" size={15} color="#FFFFFF" />
                 <Text className="text-xs font-black text-white ml-2">
-                  Test Closed-App Alert (5s Delay)
+                  Test General Closed-App (5s Delay)
                 </Text>
               </TouchableOpacity>
             </View>

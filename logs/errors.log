@@ -404,4 +404,15 @@
     - Verification:
       - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
 
+  [2026-10-02 10:35:00.000] [INFO]  [LEETCODE_REMINDER_TEST_TRIGGERS_OTA] Added interactive diagnostic test triggers to Notification Settings:
+    - Origin: User requested ability to trigger and verify the live test notification.
+    - Implementation:
+      1. Updated `components/notifications/NotificationSettingsModal.tsx` to add "Test LeetCode Streak Alert (Immediate)" and "Test LeetCode Closed-App (5s Delay)".
+      2. Configured direct trigger via `notificationEngine.trigger("LEETCODE_DAILY_REMINDER", ...)` with force flag, verifying channel routing, status bar drop-down, sound, and deep-linking to Placement Studio Challenges.
+      3. Configured 5-second interval schedulable trigger to test background wake-up and closed-app notifications.
+      4. Bumped version to `v2.2.1` in `package.json` and `app.json`.
+      5. Published OTA update via EAS Update group `18e10d2c-fba6-419b-8aac-ded58e1c1a35` to `production` channel.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
+
 
