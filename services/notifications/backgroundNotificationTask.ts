@@ -6,6 +6,7 @@
 
 import * as TaskManager from "expo-task-manager";
 import * as BackgroundFetch from "expo-background-fetch";
+import { storageService } from "@/services/storage";
 import { jobWatcher } from "@/features/placement/jobWatcher";
 import { notificationWatcher } from "./notificationWatcher";
 import { leetcodeReminderWatcher } from "./leetcodeReminderWatcher";
@@ -14,9 +15,16 @@ import { logger } from "@/utils/logger";
 export const SCIS_BACKGROUND_NOTIFICATION_TASK = "SCIS_BACKGROUND_NOTIFICATION_TASK";
 export const SCIS_LEETCODE_REMINDER_TASK = "SCIS_LEETCODE_REMINDER_TASK";
 
+async function ensureBackgroundStorageInitialized(): Promise<void> {
+  if (!storageService.isInitialized()) {
+    await storageService.init();
+  }
+}
+
 // 1. General headless background task: checks placement jobs & announcements
 TaskManager.defineTask(SCIS_BACKGROUND_NOTIFICATION_TASK, async () => {
   try {
+    await ensureBackgroundStorageInitialized();
     logger.info("BG_TASK", "General background notification sync triggered by Android OS");
 
     const [newJobsCount, newNotifsCount] = await Promise.all([
@@ -43,6 +51,7 @@ TaskManager.defineTask(SCIS_BACKGROUND_NOTIFICATION_TASK, async () => {
 // 2. Dedicated LeetCode 3-Hour Streak Reminder Task (Android WorkManager PeriodicWorkRequest)
 TaskManager.defineTask(SCIS_LEETCODE_REMINDER_TASK, async () => {
   try {
+    await ensureBackgroundStorageInitialized();
     logger.info("BG_TASK", "LeetCode 3-Hour Streak Reminder task triggered by Android WorkManager");
     const didNotify = await leetcodeReminderWatcher.checkDailySolveReminder({ silent: false });
     if (didNotify) {

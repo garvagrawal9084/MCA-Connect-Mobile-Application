@@ -183,6 +183,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         logger.debug("AUTH_STORE", "Background push token sync after login deferred", pushErr);
       });
 
+      // Initialize LeetCode reminder watcher for authenticated student
+      leetcodeReminderWatcher.init().catch((lcErr) => {
+        logger.debug("AUTH_STORE", "LeetCode reminder watcher init after login deferred", lcErr);
+      });
+
       return data;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";

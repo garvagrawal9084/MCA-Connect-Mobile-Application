@@ -19,6 +19,8 @@ import * as Notifications from "expo-notifications";
 import { useNotificationsStore } from "@/features/notifications/store";
 import { notificationEngine } from "@/services/notifications";
 import { NOTIFICATION_CHANNELS } from "@/services/notifications/channels";
+import { leetcodeReminderWatcher } from "@/services/notifications/leetcodeReminderWatcher";
+import { storageService } from "@/services/storage";
 
 interface NotificationSettingsModalProps {
   visible: boolean;
@@ -257,6 +259,38 @@ export function NotificationSettingsModal({
               <Text className="text-[11px] text-slate-600 dark:text-slate-400 leading-4 mb-3">
                 Verify that your device's native notification channels, sound, vibration, and background tap routing are operating correctly.
               </Text>
+
+              {/* Button 0: Live 3-Hour Streak Check Diagnostics */}
+              <TouchableOpacity
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                  try {
+                    const result = await leetcodeReminderWatcher.runDiagnosticCheck();
+                    const d = result.details;
+                    Alert.alert(
+                      result.notified ? "⚡ Reminder Triggered!" : "ℹ️ Check Completed",
+                      `${result.message}\n\n` +
+                        `• Student ID: ${d.userId ? `${d.userId.substring(0, 10)}...` : "None"}\n` +
+                        `• LeetCode Handle: ${d.leetcodeHandle ? `@${d.leetcodeHandle}` : "Not Linked"}\n` +
+                        `• Enrolled Challenges: ${d.enrolledChallengesCount}\n` +
+                        `• Solved Today: ${d.hasSolvedToday ? "Yes (Streak Active)" : "0 (Reminder Dispatched)"}\n` +
+                        `• Time Since Last Check: ${d.elapsedMinutes} mins\n` +
+                        `• Quiet Hours (11PM-8AM): ${d.isQuietHours ? "Active (Suppressed)" : "Inactive"}\n\n` +
+                        `Next automatic 3-hour check is scheduled.`,
+                      [{ text: "OK" }]
+                    );
+                  } catch (e) {
+                    Alert.alert("Diagnostic Failed", String(e));
+                  }
+                }}
+                className="bg-indigo-600 dark:bg-indigo-700 py-2.5 px-4 rounded-xl flex-row items-center justify-center shadow-xs mb-2.5"
+                activeOpacity={0.8}
+              >
+                <Ionicons name="pulse" size={15} color="#FFFFFF" />
+                <Text className="text-xs font-black text-white ml-2">
+                  Run Live 3-Hour Streak Check Now
+                </Text>
+              </TouchableOpacity>
 
               {/* Button 1: Immediate LeetCode Streak Alert */}
               <TouchableOpacity

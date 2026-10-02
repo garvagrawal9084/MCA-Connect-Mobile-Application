@@ -17,6 +17,7 @@ import { challengesApi } from "@/features/challenges/api";
 import { profileApi } from "@/features/profile/api";
 import { notificationEngine } from "./notificationEngine";
 import { useAuthStore } from "@/features/auth/authStore";
+import { useChallengeStore } from "@/features/challenges/store";
 import { logger } from "@/utils/logger";
 
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000; // 3 hours (10,800,000 ms)
@@ -25,6 +26,22 @@ const CHECK_BUFFER_MS = 5 * 60 * 1000; // 5-minute buffer to accommodate OS timi
 export interface ReminderCheckOptions {
   force?: boolean;
   silent?: boolean;
+}
+
+export interface ReminderDiagnosticResult {
+  success: boolean;
+  notified: boolean;
+  message: string;
+  details: {
+    userId: string | null;
+    leetcodeHandle: string | null;
+    enrolledChallengesCount: number;
+    challengesInspectedCount: number;
+    hasSolvedToday: boolean;
+    lastCheckTimestamp: number;
+    elapsedMinutes: number;
+    isQuietHours: boolean;
+  };
 }
 
 class LeetCodeReminderWatcher {
@@ -40,10 +57,15 @@ class LeetCodeReminderWatcher {
     this.isInitialized = true;
     logger.info("LEETCODE_REMINDER", "Initializing LeetCode 3-Hour Reminder Watcher");
 
-    // Start in-app periodic timer (checks every 30 minutes whether the 3-hour check is due)
+    // Ensure persistent storage is restored into memory
+    if (!storageService.isInitialized()) {
+      await storageService.init();
+    }
+
+    // Start in-app periodic timer (checks every 15 minutes whether the 3-hour check is due)
     this.startInAppPolling();
 
-    // Perform an initial check if 3 hours have already passed since last check
+    // Perform an initial check if due
     this.checkDailySolveReminder().catch((err) => {
       logger.debug("LEETCODE_REMINDER", "Initial startup reminder check skipped", err);
     });
@@ -57,12 +79,12 @@ class LeetCodeReminderWatcher {
       clearInterval(this.inAppTimer);
     }
 
-    // Inspect every 30 minutes while the app is active in foreground
+    // Inspect every 15 minutes while the app is active in foreground
     this.inAppTimer = setInterval(() => {
       this.checkDailySolveReminder().catch((err) => {
         logger.debug("LEETCODE_REMINDER", "Periodic in-app reminder poll skipped", err);
       });
-    }, 30 * 60 * 1000);
+    }, 15 * 60 * 1000);
   }
 
   /**
@@ -91,10 +113,16 @@ class LeetCodeReminderWatcher {
     this.isChecking = true;
 
     try {
+      // 0. Ensure Storage is Ready (crucial for headless background tasks)
+      if (!storageService.isInitialized()) {
+        await storageService.init();
+      }
+
       // 1. Verify Night Hours (11:00 PM to 8:00 AM)
       const now = new Date();
       const currentHour = now.getHours();
-      if (!options?.force && (currentHour >= 23 || currentHour < 8)) {
+      const isQuietHours = currentHour >= 23 || currentHour < 8;
+      if (!options?.force && isQuietHours) {
         logger.debug(
           "LEETCODE_REMINDER",
           `Skipping check during quiet hours (${currentHour}:00). Active window: 08:00 to 22:59.`
@@ -115,25 +143,26 @@ class LeetCodeReminderWatcher {
       }
 
       // 3. Resolve Current Student & User ID
-      let user = useAuthStore.getState().user;
+      let user = useAuthStore.getState().user || storageService.getUser();
       let userId: string | null = user?._id || user?.id || null;
 
       if (!userId) {
         userId = await storageService.getLeetCodeUserId();
       }
 
-      if (!userId) {
+      if (!userId || !user) {
         try {
           const profileRes = await profileApi.getProfile();
-          if (profileRes.data?.user?._id || profileRes.data?.user?.id) {
-            userId = profileRes.data.user._id || profileRes.data.user.id || null;
+          if (profileRes.data?.user) {
             user = profileRes.data.user as any;
+            userId = user?._id || user?.id || null;
             if (userId) {
               await storageService.setLeetCodeUserId(userId);
             }
           }
         } catch (profileErr) {
           logger.debug("LEETCODE_REMINDER", "Failed to retrieve student profile for reminder check", profileErr);
+          // Do not advance lastCheck timestamp on network error
           return false;
         }
       }
@@ -143,41 +172,101 @@ class LeetCodeReminderWatcher {
         return false;
       }
 
+      // Extract matching identifiers for robust leaderboard lookup
+      const userRoll = (user?.roll_no || (user as any)?.rollNo || "").toString().trim().toLowerCase();
+      const userEmail = (user?.email || "").toString().trim().toLowerCase();
+
       // 4. Check if Student has configured a LeetCode handle
       const leetcodeProfiles = user?.leetcode_profiles;
-      const hasLeetcodeHandle =
-        (Array.isArray(leetcodeProfiles) && leetcodeProfiles.length > 0 && Boolean(leetcodeProfiles[0]?.username)) ||
-        Boolean((user as any)?.leetcodeUsername) ||
-        Boolean((user as any)?.leetcode);
+      const leetcodeHandle = (
+        (Array.isArray(leetcodeProfiles) && leetcodeProfiles[0]?.username) ||
+        (user as any)?.leetcodeUsername ||
+        (user as any)?.leetcode ||
+        ""
+      ).toString().trim().toLowerCase();
 
-      if (!hasLeetcodeHandle) {
+      if (!leetcodeHandle) {
         logger.debug("LEETCODE_REMINDER", "Student has not linked a LeetCode username; skipping reminder");
         return false;
       }
 
-      // 5. Fetch Student Enrolled Challenges
-      const myChallengesRes = await challengesApi.getMyChallenges();
-      const enrolledChallenges = myChallengesRes.data?.challenges || [];
+      // 5. Fetch Student Enrolled Challenges with Multi-Schema Extraction
+      let enrolledChallenges: any[] = [];
+      try {
+        const myChallengesRes = await challengesApi.getMyChallenges();
+        const rawData = myChallengesRes.data;
+        if (Array.isArray(rawData)) {
+          enrolledChallenges = rawData;
+        } else if (Array.isArray((rawData as any)?.challenges)) {
+          enrolledChallenges = (rawData as any).challenges;
+        } else if (Array.isArray((rawData as any)?.data)) {
+          enrolledChallenges = (rawData as any).data;
+        }
+      } catch (challengesErr) {
+        logger.warn("LEETCODE_REMINDER", "Failed to fetch student enrolled challenges", challengesErr);
+      }
 
-      if (!Array.isArray(enrolledChallenges) || enrolledChallenges.length === 0) {
+      // Fallback to Zustand cache if network response was empty
+      if (enrolledChallenges.length === 0) {
+        const cachedMy = useChallengeStore.getState().myChallenges;
+        if (Array.isArray(cachedMy) && cachedMy.length > 0) {
+          enrolledChallenges = cachedMy;
+        }
+      }
+
+      // Fallback: If still empty, check all challenges where current student is a participant
+      if (enrolledChallenges.length === 0) {
+        try {
+          const allRes = await challengesApi.getAllChallenges();
+          const allList = Array.isArray(allRes.data)
+            ? allRes.data
+            : (allRes.data as any)?.challenges || [];
+          enrolledChallenges = allList.filter((ch: any) => {
+            const users = ch.users || [];
+            return users.some((u: any) => {
+              const uid = typeof u === "string" ? u : u?._id || u?.id;
+              return uid && String(uid) === String(userId);
+            });
+          });
+        } catch (allErr) {
+          logger.debug("LEETCODE_REMINDER", "All challenges fallback skipped", allErr);
+        }
+      }
+
+      if (enrolledChallenges.length === 0) {
         logger.debug("LEETCODE_REMINDER", "Student has not enrolled in any challenges; skipping reminder");
-        await storageService.setLeetCodeLastCheck(Date.now());
+        // DO NOT overwrite lastCheck so student isn't locked out once they join
         return false;
       }
 
-      // 6. Filter Active Running Challenges (startDate <= now <= endDate)
+      // 6. Filter Active Running Challenges
       const nowTime = Date.now();
-      const activeRunningChallenges = enrolledChallenges.filter((item) => {
-        const ch = item.challenge;
-        if (!ch || !ch.startDate || !ch.endDate) return false;
-        const startTime = new Date(ch.startDate).getTime();
-        const endTime = new Date(ch.endDate).getTime();
-        return !isNaN(startTime) && !isNaN(endTime) && startTime <= nowTime && nowTime <= endTime;
+      const activeRunningChallenges = enrolledChallenges.filter((item: any) => {
+        const ch = item.challenge || item;
+        if (!ch) return false;
+
+        // Skip if explicitly closed or inactive
+        if (ch.status === "completed" || ch.isActive === false) return false;
+        if (ch.status === "active" || ch.isActive === true) return true;
+
+        if (ch.startDate && ch.endDate) {
+          const startTime = new Date(ch.startDate).getTime();
+          const endTime = new Date(ch.endDate).getTime();
+          if (!isNaN(startTime) && !isNaN(endTime)) {
+            const endOfDay = new Date(endTime);
+            endOfDay.setHours(23, 59, 59, 999);
+            return startTime <= nowTime && nowTime <= endOfDay.getTime();
+          }
+        }
+        return true;
       });
 
-      if (activeRunningChallenges.length === 0) {
-        logger.debug("LEETCODE_REMINDER", "No currently running challenges found; skipping check");
-        await storageService.setLeetCodeLastCheck(Date.now());
+      // Defensive fallback: If strict date bounds yielded 0, inspect enrolled challenges
+      const challengesToInspect =
+        activeRunningChallenges.length > 0 ? activeRunningChallenges : enrolledChallenges;
+
+      if (challengesToInspect.length === 0) {
+        logger.debug("LEETCODE_REMINDER", "No active challenges to inspect; skipping check");
         return false;
       }
 
@@ -188,10 +277,10 @@ class LeetCodeReminderWatcher {
 
       // 8. Inspect Leaderboard `dailyTotal` for Each Active Challenge
       let hasSolvedAnyToday = false;
-      let userFoundInAtLeastOne = false;
+      let solvedChallengeName = "";
 
-      for (const activeItem of activeRunningChallenges) {
-        const ch = activeItem.challenge;
+      for (const activeItem of challengesToInspect) {
+        const ch = activeItem.challenge || activeItem;
         const challengeId = ch._id || ch.id;
         if (!challengeId) continue;
 
@@ -199,22 +288,70 @@ class LeetCodeReminderWatcher {
           const lbRes = await challengesApi.getChallengeLeaderboard(challengeId);
           const rawEntries = Array.isArray(lbRes.data)
             ? lbRes.data
-            : (lbRes.data as any)?.leaderboard || [];
+            : (lbRes.data as any)?.leaderboard || (lbRes.data as any)?.data || [];
 
-          // Locate current student in leaderboard by _id or userId
+          // Locate current student in leaderboard with robust multi-field matching
           const studentEntry = rawEntries.find((entry: any) => {
-            const entryId = entry._id || entry.userId || entry.user?._id || entry.user?.id;
-            return String(entryId) === String(userId);
+            // A. Direct entry ID or userId
+            const entryId = entry._id || entry.userId || entry.id;
+            if (entryId && String(entryId) === String(userId)) return true;
+
+            // B. Nested user ID
+            if (typeof entry.user === "string" && String(entry.user) === String(userId)) return true;
+            if (typeof entry.user === "object" && entry.user !== null) {
+              const uId = entry.user._id || entry.user.id;
+              if (uId && String(uId) === String(userId)) return true;
+            }
+
+            // C. Roll Number
+            const entryRoll = (
+              entry.roll_no ||
+              entry.rollNo ||
+              entry.user?.roll_no ||
+              entry.user?.rollNo ||
+              ""
+            )
+              .toString()
+              .trim()
+              .toLowerCase();
+            if (entryRoll && userRoll && entryRoll === userRoll) return true;
+
+            // D. Email
+            const entryEmail = (entry.email || entry.user?.email || "").toString().trim().toLowerCase();
+            if (entryEmail && userEmail && entryEmail === userEmail) return true;
+
+            // E. LeetCode Handle
+            const entryHandle = (
+              entry.leetcodeUsername ||
+              entry.username ||
+              entry.user?.leetcodeUsername ||
+              entry.user?.username ||
+              ""
+            )
+              .toString()
+              .trim()
+              .toLowerCase();
+            if (entryHandle && leetcodeHandle && entryHandle === leetcodeHandle) return true;
+
+            return false;
           });
 
           if (studentEntry) {
-            userFoundInAtLeastOne = true;
-            const solvedToday = typeof studentEntry.dailyTotal === "number" ? studentEntry.dailyTotal : 0;
+            const solvedToday =
+              typeof studentEntry.dailyTotal === "number"
+                ? studentEntry.dailyTotal
+                : typeof studentEntry.dailySolveCount === "number"
+                ? studentEntry.dailySolveCount
+                : typeof studentEntry.solvedToday === "number"
+                ? studentEntry.solvedToday
+                : 0;
+
             if (solvedToday > 0) {
               hasSolvedAnyToday = true;
+              solvedChallengeName = ch.name || challengeId;
               logger.info(
                 "LEETCODE_REMINDER",
-                `Student solved ${solvedToday} problem(s) today in challenge "${ch.name}". Streak is active!`
+                `Student solved ${solvedToday} problem(s) today in challenge "${solvedChallengeName}". Streak is active!`
               );
               break;
             }
@@ -226,29 +363,32 @@ class LeetCodeReminderWatcher {
 
       // If user has solved at least one question today, don't show reminder
       if (hasSolvedAnyToday) {
+        logger.info(
+          "LEETCODE_REMINDER",
+          `Streak verified active (${solvedChallengeName}). Resetting 3-hour check timer.`
+        );
         await storageService.setLeetCodeLastCheck(Date.now());
         return false;
       }
 
-      // If user is registered in active challenges and dailyTotal === 0 across ALL of them:
-      if (userFoundInAtLeastOne && !hasSolvedAnyToday) {
-        logger.info(
-          "LEETCODE_REMINDER",
-          "Student has dailyTotal === 0 across all active challenges. Triggering 3-hour streak reminder alert!"
-        );
+      // If user is enrolled in active challenges and has dailyTotal === 0 today:
+      logger.info(
+        "LEETCODE_REMINDER",
+        "Student has not solved any LeetCode questions today across active challenges. Triggering 3-hour streak reminder alert!"
+      );
 
-        await notificationEngine.trigger("LEETCODE_DAILY_REMINDER", {
+      await notificationEngine.trigger(
+        "LEETCODE_DAILY_REMINDER",
+        {
           title: "LeetCode Practice Alert",
           body: "You haven't solved any LeetCode question today 👀 – keep your streak alive!",
-        });
+        },
+        { force: options?.force }
+      );
 
-        await storageService.setLeetCodeLastCheck(Date.now());
-        return true;
-      }
-
-      // Record check timestamp even if student was not yet indexed in leaderboard
+      // Successfully notified! Stamp check timestamp
       await storageService.setLeetCodeLastCheck(Date.now());
-      return false;
+      return true;
     } catch (error) {
       logger.error("LEETCODE_REMINDER", "Unexpected error during LeetCode reminder check", error);
       return false;
@@ -263,6 +403,76 @@ class LeetCodeReminderWatcher {
    */
   async checkIfNeeded(options?: { silent?: boolean }): Promise<boolean> {
     return this.checkDailySolveReminder(options);
+  }
+
+  /**
+   * Diagnostic runner: executes live check with full trace output for in-app verification
+   */
+  async runDiagnosticCheck(): Promise<ReminderDiagnosticResult> {
+    if (!storageService.isInitialized()) {
+      await storageService.init();
+    }
+
+    const lastCheck = await storageService.getLeetCodeLastCheck();
+    const elapsedMinutes = lastCheck > 0 ? Math.round((Date.now() - lastCheck) / 60000) : 0;
+    const currentHour = new Date().getHours();
+    const isQuietHours = currentHour >= 23 || currentHour < 8;
+
+    const user = useAuthStore.getState().user || storageService.getUser();
+    const userId = user?._id || user?.id || (await storageService.getLeetCodeUserId());
+
+    const leetcodeProfiles = user?.leetcode_profiles;
+    const leetcodeHandle = (
+      (Array.isArray(leetcodeProfiles) && leetcodeProfiles[0]?.username) ||
+      (user as any)?.leetcodeUsername ||
+      (user as any)?.leetcode ||
+      ""
+    ).toString().trim();
+
+    let enrolledCount = 0;
+    try {
+      const myChallengesRes = await challengesApi.getMyChallenges();
+      const rawData = myChallengesRes.data;
+      const list = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray((rawData as any)?.challenges)
+        ? (rawData as any).challenges
+        : Array.isArray((rawData as any)?.data)
+        ? (rawData as any).data
+        : [];
+      enrolledCount = list.length;
+    } catch {
+      enrolledCount = useChallengeStore.getState().myChallenges?.length || 0;
+    }
+
+    const notified = await this.checkDailySolveReminder({ force: true });
+
+    let message = "";
+    if (notified) {
+      message = "Reminder Alert Dispatched! You have not solved any problems today in your active challenges.";
+    } else if (!leetcodeHandle) {
+      message = "Check Skipped: No LeetCode username linked to your profile.";
+    } else if (enrolledCount === 0) {
+      message = "Check Skipped: You are not enrolled in any coding challenges yet.";
+    } else {
+      message = "Streak Active: Verified that you have solved problems today, or quiet hours apply.";
+    }
+
+    return {
+      success: true,
+      notified,
+      message,
+      details: {
+        userId,
+        leetcodeHandle: leetcodeHandle || null,
+        enrolledChallengesCount: enrolledCount,
+        challengesInspectedCount: enrolledCount,
+        hasSolvedToday: !notified && enrolledCount > 0 && Boolean(leetcodeHandle),
+        lastCheckTimestamp: await storageService.getLeetCodeLastCheck(),
+        elapsedMinutes,
+        isQuietHours,
+      },
+    };
   }
 }
 

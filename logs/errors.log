@@ -428,6 +428,26 @@
       4. Enabled auto-scroll to end on Message focus and scroll to top on Areas focus.
     - Verification:
       - TypeScript (npx tsc --noEmit): 0 errors.
-      - Version Bump: v2.2.2 in package.json & app.json. Status: RESOLVED.
+  [2026-10-02 13:20:00.000] [ERROR] [LEETCODE_3HOUR_REMINDER_HEADLESS_AND_SCHEMA_FIX] Diagnosed and resolved missing 3-hour streak reminder notification:
+    - Origin: User reported waiting 3 hours after previous deployment with no automated reminder notification appearing.
+    - Root Causes Identified:
+      1. Headless Background Token Absence: `TaskManager.defineTask` callbacks executed without initializing `storageService`, causing `storageService.getAccessToken()` to return `null`. Background API requests (`/api/challenges/my`) failed with `401 Unauthorized`.
+      2. Response Array Normalization Mismatch: `GET /api/challenges/my` returns an array directly in `data`; the watcher looked strictly for `data.challenges`, defaulting `enrolledChallenges` to `[]`.
+      3. Premature Timer Resets: When checks aborted due to unparsed data or unconfirmed identity, `setLeetCodeLastCheck(Date.now())` was executed, artificially delaying the next check by 3 hours.
+      4. Overly Restrictive Date Checks: Inactive/missing `item.challenge` wrapping and strict date boundaries rejected active sprints.
+      5. Leaderboard Participant Resolution: Compared only `_id === userId` instead of checking `userId`, `user` object/string, `roll_no`, `email`, and `leetcodeUsername`.
+      6. Inverted Alert Condition: Required `userFoundInAtLeastOne` to be true; students with 0 solves or unranked status were skipped.
+    - Resolution:
+      1. Added `ensureBackgroundStorageInitialized()` in `backgroundNotificationTask.ts` ensuring `storageService.init()` is executed before headless background sync.
+      2. Re-architected `services/notifications/leetcodeReminderWatcher.ts` with multi-schema challenges normalization (arrays, objects, Zustand fallback), multi-field leaderboard student matching, and condition alerting when `!hasSolvedAnyToday`.
+      3. Ensured `lastCheck` timestamp is only updated when a notification is dispatched or an active streak is positively confirmed.
+      4. Added `runDiagnosticCheck()` method to `leetcodeReminderWatcher` and added "Run Live 3-Hour Streak Check Now" interactive button in `NotificationSettingsModal.tsx`.
+      5. Initialized `leetcodeReminderWatcher` in post-login auth callback in `features/auth/authStore.ts`.
+    - Documentation & Standards:
+      - Created `docs/leetcode-3hour-streak-reminder-bugfix.md`.
+      - Created educational guide `learning/49-background-task-storage-hydration-and-reliable-streak-reminders.md`.
+      - Bumped version to `v2.2.3` in `package.json` and `app.json`.
+    - Verification:
+      - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
 
 
