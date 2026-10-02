@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -36,9 +37,26 @@ export default function MentorsScreen() {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const requestScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     logger.info("ALUMNI", "Mentors screen rendered");
+  }, []);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   const handleRefresh = async () => {
@@ -69,6 +87,7 @@ export default function MentorsScreen() {
     setIsSending(false);
 
     if (success) {
+      Keyboard.dismiss();
       setShowRequestModal(false);
       setSelectedMentor(null);
       setAreas("");
@@ -183,93 +202,123 @@ export default function MentorsScreen() {
         visible={showRequestModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowRequestModal(false)}
-        statusBarTranslucent
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setShowRequestModal(false);
+        }}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-end bg-black/60"
         >
-          <View className="flex-1 bg-black/60 justify-end p-0">
-            <TouchableWithoutFeedback onPress={() => setShowRequestModal(false)}>
-              <View className="flex-1" />
-            </TouchableWithoutFeedback>
+          {/* Backdrop Dismiss (Absolute overlay so it does not compress flex space) */}
+          <TouchableWithoutFeedback
+            onPress={() => {
+              Keyboard.dismiss();
+              setShowRequestModal(false);
+            }}
+          >
+            <View className="absolute inset-0" />
+          </TouchableWithoutFeedback>
 
-            <View className="bg-white dark:bg-slate-900 rounded-t-[32px] p-6 max-h-[85%] border-t border-slate-200 dark:border-slate-800 shadow-2xl">
-              <View className="items-center mb-3">
-                <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full" />
+          <View className="bg-white dark:bg-slate-900 rounded-t-[32px] p-6 max-h-[88%] border-t border-slate-200 dark:border-slate-800 shadow-2xl">
+            <View className="items-center mb-3">
+              <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full" />
+            </View>
+
+            <View className="flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <View className="flex-1 pr-3">
+                <Text className="text-[11px] font-bold text-red-800 dark:text-red-300 uppercase tracking-wider">
+                  MENTORSHIP REQUEST
+                </Text>
+                <Text className="text-lg font-black text-slate-900 dark:text-white" numberOfLines={1}>
+                  to {selectedMentor?.name}
+                </Text>
               </View>
-
-              <View className="flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
-                <View className="flex-1 pr-3">
-                  <Text className="text-[11px] font-bold text-red-800 dark:text-red-300 uppercase tracking-wider">
-                    MENTORSHIP REQUEST
-                  </Text>
-                  <Text className="text-lg font-black text-slate-900 dark:text-white" numberOfLines={1}>
-                    to {selectedMentor?.name}
-                  </Text>
-                </View>
+              <View className="flex-row items-center gap-2">
+                {keyboardVisible && (
+                  <TouchableOpacity
+                    onPress={Keyboard.dismiss}
+                    className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center mr-1"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">Done</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
-                  onPress={() => setShowRequestModal(false)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowRequestModal(false);
+                  }}
                   className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center"
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Ionicons name="close" size={18} color="#64748B" />
                 </TouchableOpacity>
               </View>
-
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: 24 }}
-              >
-                <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                  Areas (comma separated)
-                </Text>
-                <TextInput
-                  className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4"
-                  placeholder="e.g. System Design, React, Career Advice"
-                  placeholderTextColor="#94A3B8"
-                  value={areas}
-                  onChangeText={setAreas}
-                  autoCorrect={false}
-                  returnKeyType="next"
-                />
-
-                <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                  Message *
-                </Text>
-                <TextInput
-                  className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4 min-h-[100px]"
-                  placeholder="Tell them why you'd like mentorship..."
-                  placeholderTextColor="#94A3B8"
-                  value={message}
-                  onChangeText={setMessage}
-                  multiline
-                  textAlignVertical="top"
-                />
-
-                <TouchableOpacity
-                  onPress={handleSendRequest}
-                  disabled={isSending || !message.trim()}
-                  activeOpacity={0.85}
-                  className={`py-3.5 rounded-2xl items-center justify-center ${
-                    isSending || !message.trim()
-                      ? "bg-slate-200 dark:bg-slate-800"
-                      : "bg-red-800"
-                  }`}
-                >
-                  {isSending ? (
-                    <View className="flex-row items-center">
-                      <ActivityIndicator size="small" color="white" />
-                      <Text className="text-white font-bold text-sm ml-2">Sending...</Text>
-                    </View>
-                  ) : (
-                    <Text className="text-white font-bold text-sm">Send Request</Text>
-                  )}
-                </TouchableOpacity>
-              </ScrollView>
             </View>
+
+            <ScrollView
+              ref={requestScrollRef}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={{ paddingBottom: keyboardVisible ? 60 : 24 }}
+            >
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                Areas (comma separated)
+              </Text>
+              <TextInput
+                className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4"
+                placeholder="e.g. System Design, React, Career Advice"
+                placeholderTextColor="#94A3B8"
+                value={areas}
+                onChangeText={setAreas}
+                autoCorrect={false}
+                returnKeyType="next"
+                onFocus={() => {
+                  requestScrollRef.current?.scrollTo({ y: 0, animated: true });
+                }}
+              />
+
+              <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                Message *
+              </Text>
+              <TextInput
+                className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white mb-4 min-h-[100px]"
+                placeholder="Tell them why you'd like mentorship..."
+                placeholderTextColor="#94A3B8"
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                textAlignVertical="top"
+                onFocus={() => {
+                  setTimeout(() => {
+                    requestScrollRef.current?.scrollToEnd({ animated: true });
+                  }, 120);
+                }}
+              />
+
+              <TouchableOpacity
+                onPress={handleSendRequest}
+                disabled={isSending || !message.trim()}
+                activeOpacity={0.85}
+                className={`py-3.5 rounded-2xl items-center justify-center ${
+                  isSending || !message.trim()
+                    ? "bg-slate-200 dark:bg-slate-800"
+                    : "bg-red-800"
+                }`}
+              >
+                {isSending ? (
+                  <View className="flex-row items-center">
+                    <ActivityIndicator size="small" color="white" />
+                    <Text className="text-white font-bold text-sm ml-2">Sending...</Text>
+                  </View>
+                ) : (
+                  <Text className="text-white font-bold text-sm">Send Request</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
