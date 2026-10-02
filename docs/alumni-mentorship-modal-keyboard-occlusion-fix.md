@@ -4,14 +4,14 @@
 > **Status:** Resolved  
 > **Type:** UI/UX Keyboard Avoidance, Soft Input Mode Resolution & Auto-Focus Scroll  
 > **Conformity:** Strict adherence to [app/AGENTS.md](file:///Users/garvagrawal/Documents/Coding/MCA-CONNECT/app/AGENTS.md)  
-> **Version Target:** `v2.1.4`
+> **Version Target:** `v2.2.2`
 
 ---
 
 ## 1. Issue Overview
 
 ### 1.1 Symptoms
-When a student navigated to **Placement -> SCIS Family**, selected any student or alumni profile (e.g. *Akshay Guru*), and tapped the **"Mentorship"** button:
+When a student navigated to **Placement -> SCIS Family**, selected any student or alumni profile (e.g. *Akshay Guru* or *Adarsh Kumar Pandey*), and tapped the **"Mentorship"** button:
 1. The **Mentorship Request** bottom sheet modal opened.
 2. Tapping into the **"Areas (comma separated)"** or **"Message *"** text input triggered the native software keyboard (Gboard / MIUI / HyperOS / Android / iOS).
 3. The software keyboard opened directly on top of the text inputs and "Send Request" submit button.
@@ -19,9 +19,9 @@ When a student navigated to **Placement -> SCIS Family**, selected any student o
 
 ### 1.2 Root Cause Analysis
 1. **Android Translucent Modal Conflict with `adjustResize`**:
-   The `<Modal>` component previously specified `statusBarTranslucent={true}`. Under Android's native WindowManager, dialog windows that draw underneath system bars (`FLAG_LAYOUT_NO_LIMITS` or `SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN`) have native window resizing (`adjustResize`) automatically disabled by the Android OS. As a result, the dialog window remained 100% of the display height, allowing the software keyboard to draw directly over the modal.
+   The `<Modal>` component on Android renders as an isolated native `android.app.Dialog`. In transparent modals, Android's WindowManager does not resize the Dialog viewport when the software keyboard opens.
 2. **`KeyboardAvoidingView` Evaluation Breakdown on Android**:
-   Under React Native on Android with `adjustResize`, `ReactRootView` reports `screenY = mVisibleViewArea.bottom` in keyboard show events. `KeyboardAvoidingView` calculates `Math.max(frame.y + frame.height - keyboardY, 0)`, which resolves to `0`. Consequently, `behavior="height"` on Android fails to apply height compensation, while setting `flex: 0` inside the Modal view tree.
+   Under React Native on Android, `KeyboardAvoidingView` calculates relative height via layout coordinates that evaluate to `0` under `adjustResize`. When set to `behavior={undefined}`, it renders a static `<View>` that performs zero upward compensation, leaving the sheet glued to the bottom of the device display behind the keyboard.
 3. **In-Flow Flex Container Space Theft**:
    The backdrop dismiss touchable was previously implemented as `<TouchableWithoutFeedback><View className="flex-1" /></TouchableWithoutFeedback>` inside the same vertical flex column as the bottom sheet. When total available height was constrained, this in-flow flex child competed with the sheet and pushed it downwards into the keyboard.
 4. **Lack of Input Focus Auto-Scrolling**:
@@ -32,18 +32,57 @@ When a student navigated to **Placement -> SCIS Family**, selected any student o
 ## 2. Changes Implemented
 
 ### 2.1 Removed `statusBarTranslucent` from `<Modal>`
-By omitting `statusBarTranslucent`, the Android native Dialog conforms to standard window policies, allowing Android's native `windowSoftInputMode="adjustResize"` to automatically resize the Dialog viewport above the software keyboard without clipping or freezing.
+By omitting `statusBarTranslucent`, the Android native Dialog conforms to standard window policies without full-screen clipping.
 
-### 2.2 Platform-Aware `KeyboardAvoidingView` Configuration
-Configured:
+### 2.2 Direct `keyboardHeight` Lift via Native `Keyboard.addListener`
+Instead of relying on `KeyboardAvoidingView` (which fails inside transparent Android Dialogs), we dynamically track the exact keyboard height:
 ```tsx
-<KeyboardAvoidingView
-  behavior={Platform.OS === "ios" ? "padding" : undefined}
+const [keyboardHeight, setKeyboardHeight] = useState(0);
+const { height: windowHeight } = useWindowDimensions();
+
+useEffect(() => {
+  const showSub = Keyboard.addListener(
+    Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+    (e) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setKeyboardVisible(true);
+      setKeyboardHeight(e.endCoordinates.height);
+    }
+  );
+  const hideSub = Keyboard.addListener(
+    Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+    () => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+    }
+  );
+  return () => {
+    showSub.remove();
+    hideSub.remove();
+  };
+}, []);
+```
+Applied directly to the outer container:
+```tsx
+<View
   className="flex-1 justify-end bg-black/60"
+  style={{ paddingBottom: keyboardHeight }}
 >
 ```
-- **Android (`undefined`)**: Delegates window resizing to Android's native `adjustResize` engine without conflicting layout calculations.
-- **iOS (`padding`)**: Dynamically pads the bottom of the container by the exact software keyboard height.
+And bounded the sheet:
+```tsx
+<View
+  className="bg-white dark:bg-slate-900 rounded-t-[32px] p-6 border-t border-slate-200 dark:border-slate-800 shadow-2xl"
+  style={{
+    maxHeight: keyboardHeight > 0
+      ? windowHeight - keyboardHeight - (Platform.OS === "android" ? 40 : 60)
+      : "88%",
+  }}
+>
+```
+- **Physically lifts the bottom sheet above the software keyboard by the exact keyboard height.**
+- **Dynamically restricts `maxHeight` so the modal sheet fits comfortably in the remaining screen space above the keyboard.**
 
 ### 2.3 Absolute Overlay Backdrop Dismissal
 Replaced the in-flow `flex-1` backdrop view with an absolute positioned overlay:

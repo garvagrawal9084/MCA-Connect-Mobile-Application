@@ -9,10 +9,11 @@ import {
   Modal,
   TextInput,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  useWindowDimensions,
+  LayoutAnimation,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -38,6 +39,8 @@ export default function MentorsScreen() {
   const [isSending, setIsSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
   const requestScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -47,11 +50,19 @@ export default function MentorsScreen() {
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => setKeyboardVisible(true)
+      (e) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardVisible(true);
+        setKeyboardHeight(e.endCoordinates.height);
+      }
     );
     const hideSub = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setKeyboardVisible(false)
+      () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }
     );
     return () => {
       showSub.remove();
@@ -207,9 +218,9 @@ export default function MentorsScreen() {
           setShowRequestModal(false);
         }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        <View
           className="flex-1 justify-end bg-black/60"
+          style={{ paddingBottom: keyboardHeight }}
         >
           {/* Backdrop Dismiss (Absolute overlay so it does not compress flex space) */}
           <TouchableWithoutFeedback
@@ -221,7 +232,14 @@ export default function MentorsScreen() {
             <View className="absolute inset-0" />
           </TouchableWithoutFeedback>
 
-          <View className="bg-white dark:bg-slate-900 rounded-t-[32px] p-6 max-h-[88%] border-t border-slate-200 dark:border-slate-800 shadow-2xl">
+          <View
+            className="bg-white dark:bg-slate-900 rounded-t-[32px] p-6 border-t border-slate-200 dark:border-slate-800 shadow-2xl"
+            style={{
+              maxHeight: keyboardHeight > 0
+                ? windowHeight - keyboardHeight - (Platform.OS === "android" ? 40 : 60)
+                : "88%",
+            }}
+          >
             <View className="items-center mb-3">
               <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full" />
             </View>
@@ -263,7 +281,7 @@ export default function MentorsScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
-              contentContainerStyle={{ paddingBottom: keyboardVisible ? 60 : 24 }}
+              contentContainerStyle={{ paddingBottom: 24 }}
             >
               <Text className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                 Areas (comma separated)
@@ -320,7 +338,7 @@ export default function MentorsScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );

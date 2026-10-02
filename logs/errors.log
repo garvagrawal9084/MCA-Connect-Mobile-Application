@@ -415,4 +415,19 @@
     - Verification:
       - TypeScript (`npx tsc --noEmit`): 0 errors. Status: RESOLVED.
 
+  [2026-10-02 10:45:00.000] [ERROR] [MENTORSHIP_MODAL_DIRECT_KEYBOARD_LIFT] Replaced KeyboardAvoidingView with direct paddingBottom: keyboardHeight and dynamic max-height constraint in Mentorship Request Modal:
+    - Origin: app/(app)/alumni/profile.tsx & app/(app)/alumni/mentors.tsx
+    - Context: On Android (e.g. Xiaomi HyperOS/MIUI), KeyboardAvoidingView inside transparent Dialog modals produces 0px offset under adjustResize softInputMode, leaving the form pinned at the bottom and cut off by virtual keyboard.
+    - Root Cause:
+      1. React Native KeyboardAvoidingView calculates relative height via layout coordinates that evaluate to 0 on Android under adjustResize.
+      2. Setting behavior={undefined} renders a static View that performs zero compensation.
+    - Resolution:
+      1. Attached Keyboard.addListener (keyboardDidShow/keyboardDidHide on Android, keyboardWillShow/keyboardWillHide on iOS) tracking exact numerical keyboardHeight with LayoutAnimation.configureNext.
+      2. Applied dynamic paddingBottom: keyboardHeight directly to the modal flex container, physically lifting the bottom sheet above the software keyboard by the exact keyboard height.
+      3. Constrained sheet maxHeight dynamically to windowHeight - keyboardHeight - 40, ensuring the sheet never overflows the viewport.
+      4. Enabled auto-scroll to end on Message focus and scroll to top on Areas focus.
+    - Verification:
+      - TypeScript (npx tsc --noEmit): 0 errors.
+      - Version Bump: v2.2.2 in package.json & app.json. Status: RESOLVED.
+
 
